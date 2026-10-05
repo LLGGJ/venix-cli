@@ -1,0 +1,7 @@
+.env
+.env.*
+.venix-dev
+.venix.json
+node_modules
+.git
+*.log
