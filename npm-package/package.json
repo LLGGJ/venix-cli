@@ -1,6 +1,6 @@
 {
   "name": "venix",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Instalador da Venix CLI nativa em Go para Linux, macOS, Windows e Termux",
   "type": "module",
   "license": "MIT",
