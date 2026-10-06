@@ -39,6 +39,7 @@ archives:
   - id: venix-archives
     ids:
       - venix
+      - venix-android
     formats:
       - tar.gz
       - zip

@@ -58,10 +58,6 @@ jobs:
           RELEASE_VERSION: ${{ github.ref_name }}
         run: npm version "${RELEASE_VERSION#v}" --no-git-tag-version --allow-same-version
 
-      - name: Publicar ponte npm para o binário Go
-        working-directory: npm-package
-        run: npm publish --access public --provenance
-
       - name: Empacotar ponte npm na GitHub Release
         working-directory: npm-package
         run: npm pack --pack-destination "$RUNNER_TEMP"
@@ -70,3 +66,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.ref_name }}" "$RUNNER_TEMP"/venix-*.tgz --clobber
+
+      - name: Publicar ponte npm para o binário Go
+        working-directory: npm-package
+        continue-on-error: true
+        run: npm publish --access public --provenance
