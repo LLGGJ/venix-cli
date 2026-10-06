@@ -1,9 +1,0 @@
-.git/
-.github/
-.env
-.env.*
-.venix/
-.venix.json
-*.log
-__pycache__/
-.DS_Store
