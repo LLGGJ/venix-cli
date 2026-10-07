@@ -20,8 +20,12 @@ if [ "\$1" = "--version" ]; then echo "$VERSION"; else echo "ARGS:\$*"; fi
 FAKE
 chmod +x "$TMP/fake-native"
 
-VENIX_BINARY_PATH="$TMP/fake-native" npm install -g --silent --prefix "$TMP/prefix" "$TGZ"
+VENIX_BINARY_PATH="$TMP/fake-native" npm install -g --prefix "$TMP/prefix" "$TGZ"
 V="$TMP/prefix/bin/venix"
-[ "$("$V" --version)" = "$VERSION" ] || { echo "ERRO: venix --version" >&2; exit 1; }
-[ "$("$V" login --x)" = "ARGS:login --x" ] || { echo "ERRO: argumentos não encaminhados corretamente" >&2; exit 1; }
+echo "npm $(npm -v), node $(node -v)"
+ls -la "$TMP/prefix/bin" "$TMP/prefix/lib/node_modules/venix/bin" || true
+GOT="$("$V" --version 2>&1 || true)"
+[ "$GOT" = "$VERSION" ] || { echo "ERRO: venix --version devolveu '$GOT', esperado '$VERSION'" >&2; exit 1; }
+GOT="$("$V" login --x 2>&1 || true)"
+[ "$GOT" = "ARGS:login --x" ] || { echo "ERRO: argumentos devolveram '$GOT'" >&2; exit 1; }
 echo "OK pacote npm $VERSION"
