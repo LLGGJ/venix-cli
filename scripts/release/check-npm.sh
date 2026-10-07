@@ -6,10 +6,9 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-PKG_VERSION="$(node -p "require(process.argv[1]).version" "$ROOT/npm-package/package.json")"
-[ "$PKG_VERSION" = "$VERSION" ] || { echo "ERRO: package.json=$PKG_VERSION, esperado $VERSION" >&2; exit 1; }
-
-(cd "$ROOT/npm-package" && npm pack --silent --pack-destination "$TMP" >/dev/null)
+# A tag é a fonte da versão: trabalha numa cópia, sem alterar o repositório.
+cp -r "$ROOT/npm-package" "$TMP/pkgsrc"
+(cd "$TMP/pkgsrc" && npm version "$VERSION" --no-git-tag-version --allow-same-version >/dev/null && npm pack --silent --pack-destination "$TMP" >/dev/null)
 TGZ="$(ls "$TMP"/venix-*.tgz)"
 expected=$'package/README.md\npackage/bin/venix.js\npackage/install.js\npackage/package.json'
 actual="$(tar -tzf "$TGZ" | sort)"

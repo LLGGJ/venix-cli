@@ -33,10 +33,6 @@ jobs:
             echo "::error::Tag inválida: $TAG (use vMAJOR.MINOR.PATCH)"; exit 1
           fi
           VERSION="${BASH_REMATCH[1]}"
-          PKG="$(node -p "require('./npm-package/package.json').version")"
-          if [ "$PKG" != "$VERSION" ]; then
-            echo "::error::npm-package/package.json está em $PKG, mas a tag é $VERSION. Rode 'npm version $VERSION --no-git-tag-version' em npm-package/, faça commit e crie a tag de novo."; exit 1
-          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "prerelease=$([[ "$VERSION" == *-* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "matrix=$(node -p "JSON.stringify(require('./.github/release-targets.json'))")" >> "$GITHUB_OUTPUT"
@@ -172,11 +168,15 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v${VERSION}"
+          # Releases criadas à mão/pelo site (rascunho ou sem binários) são substituídas;
+          # a tag é mantida. Uma release que já tem arquivos nunca é sobrescrita.
           if gh release view "$TAG" > /dev/null 2>&1; then
-            if [ "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true ]; then
+            ASSETS="$(gh release view "$TAG" --json assets -q '.assets | length')"
+            DRAFT="$(gh release view "$TAG" --json isDraft -q .isDraft)"
+            if [ "$DRAFT" = true ] || [ "$ASSETS" = 0 ]; then
               gh release delete "$TAG" --yes
             else
-              echo "::error::A release $TAG já está publicada. Use uma nova versão."; exit 1
+              echo "::error::A release $TAG já tem arquivos publicados. Use uma nova versão."; exit 1
             fi
           fi
           PRE=()
@@ -203,6 +203,9 @@ jobs:
         run: npm install -g npm@latest
       - name: Validar pacote
         run: bash scripts/release/check-npm.sh "$VERSION"
+      - name: Aplicar versão da tag no package.json
+        working-directory: npm-package
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
       - name: Publicar
         working-directory: npm-package
         env:

@@ -26,6 +26,6 @@ jobs:
         with:
           node-version: '22'
       - run: |
-          V="$(node -p "require('./npm-package/package.json').version")"
+          V=0.0.0
           bash scripts/release/check-names.sh "$V"
           bash scripts/release/check-npm.sh "$V"
