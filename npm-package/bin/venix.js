@@ -7,9 +7,11 @@ import { fileURLToPath } from 'node:url';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const binary = path.join(root, process.platform === 'win32' ? 'venix-native.exe' : 'venix-native');
 
+// npm recentes podem não executar o postinstall; nesse caso o binário é baixado aqui,
+// na primeira execução. Os logs vão para stderr para não poluir a saída (ex.: --version).
 if (!fs.existsSync(binary)) {
   const installer = path.join(root, '..', 'install.js');
-  const installResult = spawnSync(process.execPath, [installer], { stdio: 'inherit' });
+  const installResult = spawnSync(process.execPath, [installer], { stdio: [0, 2, 2] });
   if (installResult.error || installResult.status !== 0 || !fs.existsSync(binary)) {
     console.error('Não foi possível instalar o binário Go da Venix.');
     process.exit(1);

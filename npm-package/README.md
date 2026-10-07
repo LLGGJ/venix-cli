@@ -15,3 +15,5 @@ No Termux, instale antes `pkg install nodejs tar`. O instalador detecta o Termux
 O instalador confere o SHA-256 do arquivo contra o `SHA256SUMS` da release e executa `--version` no binário antes de concluir.
 
 Variáveis úteis: `VENIX_BINARY_PATH` (usa um binário local, sem download) e `VENIX_RELEASE_BASE_URL` (outro diretório de release, com `SHA256SUMS`).
+
+Se o seu npm não executa scripts de instalação (npm 12+ ou `--ignore-scripts`), o binário é baixado automaticamente na primeira execução de `venix`.
