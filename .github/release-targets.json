@@ -1,0 +1,9 @@
+[
+  {"name": "linux_amd64", "goos": "linux", "goarch": "amd64", "cgo": "0", "ext": "tar.gz", "bin": "venix", "run": true},
+  {"name": "linux_arm64", "goos": "linux", "goarch": "arm64", "cgo": "0", "ext": "tar.gz", "bin": "venix", "run": false},
+  {"name": "windows_amd64", "goos": "windows", "goarch": "amd64", "cgo": "0", "ext": "zip", "bin": "venix.exe", "run": false},
+  {"name": "windows_arm64", "goos": "windows", "goarch": "arm64", "cgo": "0", "ext": "zip", "bin": "venix.exe", "run": false},
+  {"name": "darwin_amd64", "goos": "darwin", "goarch": "amd64", "cgo": "0", "ext": "tar.gz", "bin": "venix", "run": false},
+  {"name": "darwin_arm64", "goos": "darwin", "goarch": "arm64", "cgo": "0", "ext": "tar.gz", "bin": "venix", "run": false},
+  {"name": "android_arm64", "goos": "android", "goarch": "arm64", "cgo": "1", "ext": "tar.gz", "bin": "venix", "run": false}
+]

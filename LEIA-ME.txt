@@ -1,0 +1,23 @@
+VENIX CLI - CORREÇÃO DE RELEASE + TUI RESPONSIVO DO `venix apps`
+
+COMO APLICAR
+1. Copie o conteúdo deste ZIP por cima do repositório (mantendo as pastas).
+2. APAGUE do repositório (git rm): .goreleaser.yaml e npm-package/bin/venix-native
+3. Rode no seu PC/Termux (não foi possível rodar Go aqui):
+     make fmt && go vet ./... && go test ./... && go build -o /tmp/v ./cmd/venix && /tmp/v --version
+4. git add -A && git commit -m "release: pipeline + apps responsivo"
+   git push origin main
+   git tag v1.0.5 && git push origin v1.0.5
+
+ARQUIVOS CRIADOS
+ .github/release-targets.json        (fonte única dos 7 alvos/nomes)
+ scripts/release/{check_binary.py,check-names.sh,check-npm.sh,finalize.sh}
+ internal/menu/{layout.go,layout_test.go,resize_unix.go,resize_windows.go}
+ cmd/venix/{args.go,args_test.go}
+ARQUIVOS ALTERADOS
+ .github/workflows/{release.yml,ci.yml}, Makefile, .gitignore, README.md,
+ GITHUB-AUTOMATICO.md, cmd/venix/{main.go,commands.go}, internal/menu/{menu.go,menu_test.go},
+ npm-package/{install.js,bin/venix.js,package.json,README.md}
+REMOVIDOS: .goreleaser.yaml, npm-package/bin/venix-native
+
+NO GITHUB: secret opcional NPM_TOKEN (ou Trusted Publisher no npm para release.yml).
