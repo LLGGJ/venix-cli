@@ -33,3 +33,7 @@ coverage/
 dist/
 *.exe
 .coverage
+
+# Binário baixado pelo instalador npm e pacotes gerados
+npm-package/bin/venix-native*
+*.tgz

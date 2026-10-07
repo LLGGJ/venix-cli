@@ -4,35 +4,18 @@ CLI nativa da VenixCloud, escrita em Go, com binários para Linux, macOS e Windo
 
 ## Instalação
 
-### Termux pelo npm
+### npm (Linux, macOS, Windows e Termux)
 
-O pacote npm é somente um instalador: ele baixa o binário nativo Go para o celular.
-No Termux, ele baixa o asset `android_arm64` em PIE; não use diretamente o asset `linux_arm64`, pois o linker Android pode recusá-lo.
+O pacote npm é somente um instalador: ele baixa o binário nativo Go da GitHub Release de mesma versão, confere o SHA-256 e verifica `--version`.
 
 ```bash
-pkg update
-pkg install nodejs tar
+# Termux: pkg update && pkg install nodejs tar
 npm install -g venix
 venix --version
-venix login
+venix help
 ```
 
-Para instalar diretamente o pacote anexado à GitHub Release, sem usar uma
-versão diferente do registro público npm:
-
-```bash
-npm install -g https://github.com/LLGGJ/venix-cli/releases/download/v0.7.4/venix-0.7.4.tgz
-venix --version
-```
-
-Troque `0.7.4` pela tag da release mais recente. O pacote vem da mesma
-release que contém os binários Go.
-
-Para uma versão específica:
-
-```bash
-npm install -g venix@1.0.1
-```
+Plataformas: Linux, macOS e Windows (amd64 e arm64) e Android/Termux (arm64, asset `android_arm64`).
 
 Baixe o arquivo correspondente ao seu sistema na página de [Releases](https://github.com/LLGGJ/venix-cli/releases):
 
@@ -45,8 +28,8 @@ Depois, coloque o executável `venix` no `PATH`.
 ### Linux e macOS
 
 ```bash
-curl -LO https://github.com/LLGGJ/venix-cli/releases/download/v0.7.4/venix_0.7.4_linux_amd64.tar.gz
-tar -xzf venix_0.7.4_linux_amd64.tar.gz
+curl -LO https://github.com/LLGGJ/venix-cli/releases/download/v1.0.5/venix_1.0.5_linux_amd64.tar.gz
+tar -xzf venix_1.0.5_linux_amd64.tar.gz
 chmod +x venix
 sudo install venix /usr/local/bin/venix
 venix --version
@@ -164,8 +147,8 @@ A release é criada automaticamente quando uma tag `v*` é enviada:
 git add .
 git commit -m "ci: configure automatic cross-platform releases"
 git push origin main
-git tag v0.7.4
-git push origin v0.7.4
+git tag v1.0.5
+git push origin v1.0.5
 ```
 
 O GitHub Actions executa testes, GoReleaser e publica os 12 arquivos binários, além de `checksums.txt`.

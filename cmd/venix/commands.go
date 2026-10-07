@@ -49,11 +49,11 @@ func appsCmd() *cobra.Command {
 			printApps(apps)
 			return nil
 		}
-		items := make([]string, len(apps))
+		items := make([]menu.Item, len(apps))
 		for i, app := range apps {
-			items[i] = appSummary(app)
+			items[i] = appItem(app)
 		}
-		selected, e := menu.Select("APLICAÇÕES", items)
+		selected, e := menu.SelectItems("APLICAÇÕES", []string{"NOME", "STATUS", "MEMÓRIA"}, items)
 		if e != nil || selected < 0 {
 			return e
 		}
@@ -84,8 +84,32 @@ func appValue(app map[string]any, keys ...string) string {
 	return "-"
 }
 
-func appSummary(app map[string]any) string {
-	return fmt.Sprintf("%-24s  status: %-12s  memória: %s MB", appValue(app, "name", "appName"), appValue(app, "status", "state"), appValue(app, "max_ram", "ram", "memory"))
+func appItem(app map[string]any) menu.Item {
+	label, tone := appStatus(appValue(app, "status", "state"))
+	detail := appValue(app, "max_ram", "ram", "memory")
+	if detail != "-" {
+		detail += " MB"
+	}
+	return menu.Item{Title: appValue(app, "name", "appName"), Status: label, Detail: detail, Tone: tone}
+}
+
+func appStatus(raw string) (string, menu.Tone) {
+	value := strings.ToUpper(strings.TrimSpace(raw))
+	switch value {
+	case "ONLINE", "RUNNING", "ACTIVE", "STARTED", "UP":
+		return "ONLINE", menu.ToneGood
+	case "OFFLINE", "STOPPED", "DOWN", "EXITED":
+		return "OFFLINE", menu.ToneBad
+	case "STARTING", "DEPLOYING", "BUILDING", "RESTARTING":
+		return "INICIANDO", menu.ToneWarn
+	case "STOPPING":
+		return "PARANDO", menu.ToneWarn
+	case "ERROR", "FAILED", "CRASHED":
+		return "ERRO", menu.ToneBad
+	case "", "-":
+		return "N/D", menu.ToneMuted
+	}
+	return value, menu.ToneMuted
 }
 
 func appURL(app map[string]any) string {

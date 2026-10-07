@@ -16,6 +16,9 @@ func TestReadKey(t *testing.T) {
 		{name: "enter", data: "\r", want: "enter"},
 		{name: "escape", data: "\x1b", want: "esc"},
 		{name: "sair", data: "q", want: "q"},
+		{name: "seta modo aplicação", data: "\x1bOA", want: "up"},
+		{name: "j desce", data: "j", want: "down"},
+		{name: "k sobe", data: "k", want: "up"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

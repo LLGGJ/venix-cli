@@ -5,105 +5,119 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"golang.org/x/term"
 )
 
-const (
-	reset = "\033[0m"
-	cyan  = "\033[36m"
-	blue  = "\033[94m"
-	white = "\033[97m"
-	dim   = "\033[2m"
-)
+func colorsEnabled() bool {
+	return os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb"
+}
 
-func color(code, value string) string {
-	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
-		return value
+func terminalSize() (int, int) {
+	width, height, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || width <= 0 {
+		return 80, 24
 	}
-	return code + value + reset
+	if height <= 0 {
+		height = 24
+	}
+	return width, height
 }
 
 // Select mostra uma lista navegável e devolve o índice confirmado pelo usuário.
-// Setas cima/baixo alteram a seleção; Enter confirma; Esc ou q cancela.
+// Setas (ou j/k) alteram a seleção; Enter confirma; Esc ou q cancela.
 func Select(title string, items []string) (int, error) {
+	list := make([]Item, len(items))
+	for i, item := range items {
+		list[i] = Item{Title: item}
+	}
+	return SelectItems(title, nil, list)
+}
+
+// SelectItems é como Select, mas aceita status/detalhe por item e cabeçalhos
+// opcionais de colunas (exatamente três: nome, status e detalhe). O layout é
+// recalculado a cada desenho, inclusive quando o terminal é redimensionado.
+func SelectItems(title string, headers []string, items []Item) (int, error) {
 	if len(items) == 0 {
 		return -1, fmt.Errorf("menu vazio")
 	}
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
 		return -1, fmt.Errorf("menu interativo exige um terminal")
 	}
-
-	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+	state, err := term.MakeRaw(fd)
 	if err != nil {
 		return -1, fmt.Errorf("ativar modo interativo: %w", err)
 	}
-	defer term.Restore(int(os.Stdin.Fd()), state)
+	defer term.Restore(fd, state)
 
-	selected := 0
+	out := os.Stdout
+	colors := colorsEnabled()
+	fmt.Fprint(out, "\033[?1049h\033[?25l")
+	defer fmt.Fprint(out, "\033[?25h\033[?1049l")
+
+	var mu sync.Mutex
+	selected, top := 0, 0
+	redraw := func() {
+		mu.Lock()
+		defer mu.Unlock()
+		width, height := terminalSize()
+		var lines []line
+		lines, top = buildFrame(title, headers, items, selected, top, width, height)
+		fmt.Fprint(out, renderFrame(lines, colors))
+	}
+	stop := watchResize(redraw)
+	defer stop()
+	redraw()
+
 	for {
-		render(title, items, selected)
 		key, err := readKey(os.Stdin)
 		if err != nil {
 			return -1, err
 		}
+		mu.Lock()
 		switch key {
 		case "up":
 			selected = (selected - 1 + len(items)) % len(items)
 		case "down":
 			selected = (selected + 1) % len(items)
+		}
+		current := selected
+		mu.Unlock()
+		switch key {
 		case "enter":
-			clear(len(items) + 3)
-			return selected, nil
+			return current, nil
 		case "esc", "q":
-			clear(len(items) + 3)
 			return -1, nil
+		default:
+			redraw()
 		}
-	}
-}
-
-func render(title string, items []string, selected int) {
-	clear(len(items) + 3)
-	fmt.Println(color(blue, "◆ "+title))
-	fmt.Println(color(dim, "Use ↑ ↓ para navegar • Enter para selecionar • Esc para sair"))
-	for i, item := range items {
-		if i == selected {
-			fmt.Println(color(cyan, "❯ ") + color(white, item))
-		} else {
-			fmt.Println("  " + item)
-		}
-	}
-}
-
-func clear(lines int) {
-	if os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb" {
-		fmt.Print("\033[2J\033[H")
-		return
-	}
-	for i := 0; i < lines; i++ {
-		fmt.Println()
 	}
 }
 
 func readKey(r io.Reader) (string, error) {
-	var b [3]byte
+	var b [8]byte
 	n, err := r.Read(b[:])
 	if err != nil {
 		return "", err
 	}
 	if n == 1 {
 		switch b[0] {
-		case 3:
+		case 3, 27:
 			return "esc", nil
 		case 10, 13:
 			return "enter", nil
-		case 27:
-			return "esc", nil
 		case 'q', 'Q':
 			return "q", nil
+		case 'k', 'K':
+			return "up", nil
+		case 'j', 'J':
+			return "down", nil
 		}
+		return "", nil
 	}
-	if n >= 3 && b[0] == 27 && b[1] == '[' {
+	if n >= 3 && b[0] == 27 && (b[1] == '[' || b[1] == 'O') {
 		switch b[2] {
 		case 'A':
 			return "up", nil

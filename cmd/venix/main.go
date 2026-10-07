@@ -7,7 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var version = "0.7.3"
+// version é injetada no build: -ldflags "-X main.version=1.2.3". "dev" é só o padrão local.
+var version = "dev"
 
 func main() {
 	root := &cobra.Command{
@@ -20,6 +21,8 @@ func main() {
 	root.SetVersionTemplate("{{.Version}}\n")
 	root.AddCommand(authCommand(), loginCommand(), &cobra.Command{Use: "logout", Short: "Remove as credenciais deste computador", RunE: func(*cobra.Command, []string) error { return logout() }}, &cobra.Command{Use: "whoami", Short: "Mostra conta, plano e projeto vinculado", RunE: func(*cobra.Command, []string) error { return whoami() }}, appCommand(), deployCmd())
 	addCommands(root)
+	exe, _ := os.Executable()
+	root.SetArgs(launcherArgs(os.Args, exe))
 	if err := root.Execute(); err != nil {
 		output.Error("erro: " + err.Error())
 		os.Exit(1)

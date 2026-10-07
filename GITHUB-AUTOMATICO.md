@@ -1,86 +1,19 @@
 # Release automático da Venix CLI
 
-A Venix CLI é executada como binário nativo Go. Para facilitar o Termux, existe uma ponte npm pequena que apenas baixa esse binário; a lógica da CLI continua em Go.
+Fonte única da versão: **a tag Git**. O Go recebe a versão por `-ldflags "-X main.version=..."` (sem tag local o padrão é `dev`), e o workflow falha se `npm-package/package.json` não tiver a mesma versão.
 
-## O que o workflow faz
-
-O arquivo `.github/workflows/release.yml` é executado quando uma tag com o padrão `v*` é enviada. Ele:
-
-1. baixa o código completo;
-2. configura Go 1.22;
-3. executa `gofmt`, `go vet` e `go test`;
-4. executa o GoReleaser;
-5. cria uma GitHub Release;
-6. publica artefatos para Linux, macOS e Windows, em AMD64 e ARM64;
-7. publica `checksums.txt`;
-8. publica o pacote `venix` no npm via Trusted Publishing/OIDC.
-9. anexa `venix-VERSAO.tgz` à mesma GitHub Release para instalação direta pelo GitHub.
-
-## Configuração no GitHub
-
-Em `Settings → Actions → General`, deixe permitido que os workflows criem e escrevam releases. O workflow usa o `GITHUB_TOKEN` automático e a permissão:
-
-```yaml
-permissions:
-  contents: write
-  id-token: write
-```
-
-No npm, configure um Trusted Publisher para o pacote `venix`, repositório `LLGGJ/venix-cli` e workflow `release.yml`. Não crie token manual nem chave privada para o workflow.
-
-O pacote npm contém somente `install.js` e um lançador; ele não substitui nem reimplementa o código Go.
-
-Para instalar a versão da GitHub Release diretamente no Termux:
+## Publicar
 
 ```bash
-npm install -g https://github.com/LLGGJ/venix-cli/releases/download/v0.7.4/venix-0.7.4.tgz
-```
-
-## Publicar uma versão
-
-Na raiz do repositório:
-
-```bash
-git add .
-git commit -m "ci: configure automatic cross-platform releases"
-git push origin main
-
-git tag v0.7.4
-git push origin v0.7.4
-```
-
-Acompanhe em `Actions → Release`. Quando terminar, a release estará em:
-
-```text
-https://github.com/LLGGJ/venix-cli/releases
-```
-
-## Artefatos esperados
-
-Para cada versão, o GoReleaser gera arquivos para os seis alvos:
-
-```text
-venix_VERSION_linux_amd64.tar.gz
-venix_VERSION_linux_arm64.tar.gz
-venix_VERSION_darwin_amd64.tar.gz
-venix_VERSION_darwin_arm64.tar.gz
-venix_VERSION_windows_amd64.zip
-venix_VERSION_windows_arm64.zip
-checksums.txt
-```
-
-Também são gerados arquivos `.zip` para todos os alvos, conforme a configuração do GoReleaser.
-
-## Validação local
-
-Com GoReleaser instalado:
-
-```bash
+cd npm-package && npm version 1.0.5 --no-git-tag-version && cd ..
 make fmt
-make tidy
-make test
-go vet ./...
-make snapshot
+git add -A && git commit -m "release: 1.0.5"
+git push origin main
+git tag v1.0.5 && git push origin v1.0.5
 ```
 
-O snapshot não publica nada. Ele apenas confirma que os binários e os checksums podem ser gerados.
+O workflow `release.yml` valida versão e nomes, roda `gofmt`/`vet`/`test`, compila `./cmd/venix` para 7 alvos (matriz definida em `.github/release-targets.json`), valida formato/arquitetura de cada binário, cria os archives, gera `SHA256SUMS`, publica a GitHub Release (só depois de tudo anexado) e então publica o npm (Trusted Publishing/OIDC ou o secret opcional `NPM_TOKEN`).
+
+Artefatos: `venix_<versão>_<os>_<arch>.tar.gz` (`.zip` no Windows) e `SHA256SUMS`. Dentro de cada archive o executável se chama `venix` (`venix.exe`).
+
+Android/Termux é compilado com cgo e o Android NDK (binário dinâmico Bionic), como o `go build` feito no próprio Termux. No npm, configure um Trusted Publisher para `LLGGJ/venix-cli`, workflow `release.yml`.

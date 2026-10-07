@@ -1,8 +1,8 @@
 BINARY := venix
-VERSION ?= 0.7.3
+VERSION ?= $(shell git describe --tags --always 2>/dev/null | sed "s/^v//" || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: fmt tidy vet test check build install snapshot release clean
+.PHONY: fmt tidy vet test check build install clean
 
 fmt:
 	gofmt -w cmd internal
@@ -24,12 +24,6 @@ build:
 
 install:
 	go install -trimpath -ldflags "$(LDFLAGS)" ./cmd/venix
-
-snapshot:
-	goreleaser release --snapshot --clean
-
-release:
-	goreleaser release --clean
 
 clean:
 	go clean

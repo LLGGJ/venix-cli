@@ -1,31 +1,17 @@
 # `venix`
 
-Este pacote npm é somente um **instalador/ponte**. A CLI executada é um binário nativo compilado em Go.
-
-## Termux
-
-Depois que a release `v1.0.1` existir no GitHub:
+Pacote npm que apenas **instala** a Venix CLI: o executável real é um binário nativo em Go, baixado da GitHub Release de mesma versão.
 
 ```bash
-pkg update
-pkg install nodejs tar
 npm install -g venix
 venix --version
-venix login
+venix help
 ```
 
-O instalador detecta automaticamente o Termux como `android/arm64`, baixa o artefato Go PIE correto para o linker Android e coloca o executável dentro do pacote npm. O asset Linux ARM64 comum não é usado no Termux.
+Plataformas: Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64, arm64) e Android/Termux (arm64).
 
-Para instalar uma versão específica:
+No Termux, instale antes `pkg install nodejs tar`. O instalador detecta o Termux e baixa o asset `android_arm64`, nunca o `linux_arm64`.
 
-```bash
-npm install -g venix@1.0.1
-```
+O instalador confere o SHA-256 do arquivo contra o `SHA256SUMS` da release e executa `--version` no binário antes de concluir.
 
-Para testar um binário local sem download:
-
-```bash
-VENIX_BINARY_PATH=/caminho/para/venix npm install -g ./npm-package
-```
-
-O npm é usado apenas para facilitar a instalação no celular; comandos, autenticação, API, menus e operações continuam sendo executados pelo Go.
+Variáveis úteis: `VENIX_BINARY_PATH` (usa um binário local, sem download) e `VENIX_RELEASE_BASE_URL` (outro diretório de release, com `SHA256SUMS`).
