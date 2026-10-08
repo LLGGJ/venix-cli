@@ -6,21 +6,25 @@ import (
 )
 
 func TestLauncherArgs(t *testing.T) {
-	exe := "/data/data/com.termux/files/usr/lib/node_modules/venix/bin/venix-native"
+	bin := "/data/data/com.termux/files/home/venix"
+	linker := "/apex/com.android.runtime/bin/linker64"
 	tests := []struct {
 		name string
 		argv []string
+		exe  string
 		want []string
 	}{
-		{"sem argumentos", []string{"venix-native"}, []string{}},
-		{"normal", []string{"venix-native", "--version"}, []string{"--version"}},
-		{"caminho repetido", []string{"venix-native", exe, "--version"}, []string{"--version"}},
-		{"caminho repetido sozinho", []string{"venix-native", exe}, []string{}},
-		{"comando normal", []string{"venix-native", "apps", "--json"}, []string{"apps", "--json"}},
+		{"sem argumentos", []string{bin}, bin, []string{}},
+		{"normal", []string{bin, "--version"}, bin, []string{"--version"}},
+		{"caminho repetido", []string{bin, bin, "--version"}, bin, []string{"--version"}},
+		{"caminho repetido sozinho", []string{bin, bin}, bin, []string{}},
+		{"comando normal", []string{bin, "apps", "--json"}, bin, []string{"apps", "--json"}},
+		{"executável aponta para o linker", []string{bin, bin, "--version"}, linker, []string{"--version"}},
+		{"linker não esconde comandos", []string{bin, "apps"}, linker, []string{"apps"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := launcherArgs(tt.argv, exe); !reflect.DeepEqual(got, tt.want) {
+			if got := launcherArgs(tt.argv, tt.exe); !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("launcherArgs() = %v, want %v", got, tt.want)
 			}
 		})

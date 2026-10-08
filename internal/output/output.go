@@ -30,7 +30,7 @@ func Info(message string)    { fmt.Fprintln(os.Stdout, paint(cyan, "ℹ "+messag
 func Success(message string) { fmt.Fprintln(os.Stdout, paint(green, "✔ "+message)) }
 func Warning(message string) { fmt.Fprintln(os.Stderr, paint(yellow, "⚠ "+message)) }
 func Error(message string)   { fmt.Fprintln(os.Stderr, paint(red, "✖ "+message)) }
-func Heading(message string) { fmt.Fprintln(os.Stdout, paint(blue, message)) }
+func Heading(message string) { fmt.Fprintln(os.Stdout, paint(bold+blue, message)) }
 func Muted(message string)   { fmt.Fprintln(os.Stdout, paint(gray, message)) }
 func Link(label, url string) {
 	if label == "" {
@@ -45,9 +45,9 @@ func Status(status string) string {
 	switch value {
 	case "ONLINE", "RUNNING", "ACTIVE", "STARTED", "UP":
 		code = green
-	case "DEPLOYING", "BUILDING", "STARTING", "RESTARTING":
+	case "DEPLOYING", "BUILDING", "STARTING", "RESTARTING", "INICIANDO", "PARANDO":
 		code = yellow
-	case "OFFLINE", "STOPPED", "STOPPING", "ERROR", "FAILED":
+	case "OFFLINE", "STOPPED", "STOPPING", "ERROR", "FAILED", "ERRO":
 		code = red
 	}
 	return paint(code, status)

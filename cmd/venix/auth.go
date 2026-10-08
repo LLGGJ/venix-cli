@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"os"
+	"time"
 
 	"github.com/LLGGJ/venix-cli/internal/auth"
 	"github.com/LLGGJ/venix-cli/internal/output"
@@ -41,9 +43,36 @@ func logout() error {
 	return nil
 }
 func whoami() error {
-	c, e := store.Creds()
+	creds, e := store.Creds()
 	if e != nil {
+		if os.IsNotExist(e) {
+			return errors.New("você não está conectado; rode: venix login")
+		}
 		return e
 	}
-	return output.JSON(false, map[string]any{"client_id": c.ClientID, "authenticated": c.AccessToken != ""})
+	if creds.AccessToken == "" {
+		return errors.New("você não está conectado; rode: venix login")
+	}
+	output.Success("Conectado à VenixCloud")
+	output.Field("Client ID", creds.ClientID, 10)
+	if t, err := time.Parse(time.RFC3339, creds.ExpiresAt); err == nil {
+		output.Field("Sessão até", t.Local().Format("02/01/2006 15:04"), 10)
+	}
+	c, err := client()
+	if err != nil {
+		return nil
+	}
+	me, err := c.GetMe()
+	if err != nil {
+		return nil
+	}
+	if user, ok := me["user"].(map[string]any); ok {
+		me = user
+	}
+	for _, f := range []struct{ label, key string }{{"Nome", "name"}, {"E-mail", "email"}, {"Plano", "plan"}} {
+		if v := appValue(me, f.key); v != "-" {
+			output.Field(f.label, v, 10)
+		}
+	}
+	return nil
 }

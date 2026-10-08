@@ -118,9 +118,15 @@ func appURL(app map[string]any) string {
 
 func printApps(apps []map[string]any) {
 	output.Heading("APLICAÇÕES")
-	output.Info("Nome                     Status        Memória")
+	output.Muted(fmt.Sprintf("%-24s  %-10s  %s", "NOME", "STATUS", "MEMÓRIA"))
 	for _, app := range apps {
-		output.Info(fmt.Sprintf("%-24s  status: %s  memória: %s MB", appValue(app, "name", "appName"), output.Status(appValue(app, "status", "state")), appValue(app, "max_ram", "ram", "memory")))
+		label, _ := appStatus(appValue(app, "status", "state"))
+		pad := strings.Repeat(" ", max(0, 10-len([]rune(label))))
+		memory := appValue(app, "max_ram", "ram", "memory")
+		if memory != "-" {
+			memory += " MB"
+		}
+		fmt.Printf("%-24s  %s%s  %s\n", appValue(app, "name", "appName"), output.Status(label), pad, memory)
 		if url := appURL(app); url != "-" {
 			output.Link("  ↳", url)
 		}
@@ -140,13 +146,13 @@ func appActions(c *api.Client, app map[string]any) error {
 		case 0:
 			b, _ := json.MarshalIndent(app, "", "  ")
 			output.Heading("DETALHES • " + name)
-			fmt.Println(string(b))
+			fmt.Println(output.ColorJSON(b))
 			if url := appURL(app); url != "-" {
 				output.Link("Acessar aplicação:", url)
 			}
 		case 1:
 			output.Info("Mostrando logs recentes; use Ctrl+C para sair")
-			if e = c.StreamLogs(id, false, func(line string) { output.Info(line) }); e != nil {
+			if e = c.StreamLogs(id, false, output.Log); e != nil {
 				return e
 			}
 		case 2, 3, 4:
@@ -394,7 +400,7 @@ func logsCmd() *cobra.Command {
 		} else {
 			output.Info("Acompanhando logs ao vivo; use Ctrl+C para sair")
 		}
-		return c.StreamLogs(fmt.Sprint(a["id"]), follow, func(line string) { output.Info(line) })
+		return c.StreamLogs(fmt.Sprint(a["id"]), follow, output.Log)
 	}}
 	c.Flags().BoolVarP(&follow, "follow", "f", false, "acompanha os logs ao vivo")
 	return c

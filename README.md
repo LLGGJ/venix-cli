@@ -17,6 +17,8 @@ venix help
 
 Plataformas: Linux, macOS e Windows (amd64 e arm64) e Android/Termux (arm64, asset `android_arm64`).
 
+`venix login` abre o navegador automaticamente (no Termux, via `termux-open-url`). `venix` e `venix help` mostram a ajuda e abrem https://venixcloud.com/en/tools; defina `VENIX_NO_OPEN=1` para desativar.
+
 Baixe o arquivo correspondente ao seu sistema na página de [Releases](https://github.com/LLGGJ/venix-cli/releases):
 
 - Linux: `.tar.gz`
