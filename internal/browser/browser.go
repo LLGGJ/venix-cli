@@ -64,16 +64,66 @@ func lookPath(name string) (string, bool) {
 	return "", false
 }
 
-// systemEnv remove variáveis do Termux que quebram binários do sistema Android.
+// systemEnv remove variáveis do Termux que quebram binários do sistema Android
+// (loader e PATH, que faria o `cmd` do Termux ser usado no lugar do do sistema).
 func systemEnv() []string {
 	var env []string
 	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "LD_LIBRARY_PATH=") || strings.HasPrefix(kv, "LD_PRELOAD=") {
+		if strings.HasPrefix(kv, "LD_LIBRARY_PATH=") || strings.HasPrefix(kv, "LD_PRELOAD=") || strings.HasPrefix(kv, "PATH=") {
 			continue
 		}
 		env = append(env, kv)
 	}
-	return env
+	return append(env, "PATH=/system/bin:/system/xbin")
+}
+
+const androidLinker = "/system/bin/linker64"
+
+func shebangLine(path string) (string, string, bool) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", "", false
+	}
+	defer f.Close()
+	buf := make([]byte, 256)
+	n, _ := f.Read(buf)
+	if n < 3 || buf[0] != '#' || buf[1] != '!' {
+		return "", "", false
+	}
+	line := string(buf[2:n])
+	if i := strings.IndexByte(line, '\n'); i >= 0 {
+		line = line[:i]
+	}
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return "", "", false
+	}
+	arg := ""
+	if len(fields) > 1 {
+		arg = fields[1]
+	}
+	return fields[0], arg, true
+}
+
+// viaLinker adapta a execução ao Android: binários e scripts fora de /system só
+// podem ser executados pelo linker (é o que o termux-exec faz para programas em C).
+// O os/exec do Go chama execve direto e por isso recebe "permission denied".
+func viaLinker(goos, linker, path string, args []string) (string, []string) {
+	if goos != "android" || strings.HasPrefix(path, "/system/") {
+		return path, args
+	}
+	if _, err := os.Stat(linker); err != nil {
+		return path, args
+	}
+	var argv []string
+	if interp, arg, ok := shebangLine(path); ok {
+		argv = append(argv, interp)
+		if arg != "" {
+			argv = append(argv, arg)
+		}
+	}
+	argv = append(argv, path)
+	return linker, append(argv, args...)
 }
 
 func describe(err error, stderr string) string {
@@ -105,7 +155,8 @@ func OpenDetailed(url string) (bool, string) {
 			notes = append(notes, args[0]+": não encontrado")
 			continue
 		}
-		cmd := exec.Command(path, args[1:]...)
+		name, argv := viaLinker(runtime.GOOS, androidLinker, path, args[1:])
+		cmd := exec.Command(name, argv...)
 		if args[0] == "/system/bin/am" {
 			cmd.Env = systemEnv()
 		}

@@ -98,7 +98,7 @@ func appValue(app map[string]any, keys ...string) string {
 }
 
 func appItem(app map[string]any) menu.Item {
-	label, tone := appStatus(appValue(app, "status", "state"))
+	label, tone := appStatus(statusRaw(app))
 	id := appValue(app, "id")
 	if id == "-" {
 		id = ""
@@ -109,9 +109,9 @@ func appItem(app map[string]any) menu.Item {
 func appStatus(raw string) (string, menu.Tone) {
 	value := strings.ToUpper(strings.TrimSpace(raw))
 	switch value {
-	case "ONLINE", "RUNNING", "ACTIVE", "STARTED", "UP":
+	case "ONLINE", "RUNNING", "ACTIVE", "STARTED", "UP", "HEALTHY":
 		return "ONLINE", menu.ToneGood
-	case "OFFLINE", "STOPPED", "DOWN", "EXITED":
+	case "OFFLINE", "STOPPED", "DOWN", "EXITED", "PAUSED", "SUSPENDED":
 		return "OFFLINE", menu.ToneBad
 	case "STARTING", "DEPLOYING", "BUILDING", "RESTARTING":
 		return "INICIANDO", menu.ToneWarn
@@ -133,7 +133,7 @@ func printApps(apps []map[string]any) {
 	output.Heading("APLICAÇÕES")
 	output.Muted(fmt.Sprintf("%-24s  %-10s  %s", "NOME", "STATUS", "USO"))
 	for _, app := range apps {
-		label, _ := appStatus(appValue(app, "status", "state"))
+		label, _ := appStatus(statusRaw(app))
 		pad := strings.Repeat(" ", max(0, 10-len([]rune(label))))
 		memory := appUsage(app)
 		fmt.Printf("%-24s  %s%s  %s\n", appValue(app, "name", "appName"), output.Status(label), pad, memory)

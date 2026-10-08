@@ -34,3 +34,31 @@ func TestMergeStatus(t *testing.T) {
 		t.Fatalf("app sem status não deve ser alterado: %v", apps[1])
 	}
 }
+
+func TestStatusRaw(t *testing.T) {
+	tests := []struct {
+		name string
+		app  map[string]any
+		want string
+	}{
+		{"texto", map[string]any{"status": "running"}, "running"},
+		{"booleano", map[string]any{"running": true}, "online"},
+		{"objeto", map[string]any{"state": map[string]any{"status": "stopped"}}, "stopped"},
+		{"ausente", map[string]any{"name": "x"}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := statusRaw(tt.app); got != tt.want {
+				t.Fatalf("statusRaw() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMergeStatusShapes(t *testing.T) {
+	apps := []map[string]any{{"id": "a1", "name": "api"}, {"id": "b2", "name": "bot"}}
+	mergeStatus(apps, map[string]any{"statuses": map[string]any{"a1": "online", "bot": false}})
+	if statusRaw(apps[0]) != "online" || statusRaw(apps[1]) != "offline" {
+		t.Fatalf("status por id/nome não mesclado: %v %v", apps[0], apps[1])
+	}
+}

@@ -43,7 +43,7 @@
 curl -fsSL https://raw.githubusercontent.com/LLGGJ/venix-cli/main/install.sh | sh
 ```
 
-Detecta o sistema, baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.16 sh install.sh`.
+Detecta o sistema, baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.17 sh install.sh`.
 
 </details>
 
@@ -143,7 +143,7 @@ O agrupamento `venix app <comando>` também existe. Para scripts, use `--json` (
 
 ### `venix doctor`
 
-Mostra, em um comando, versão, caminho do executável, ambiente (Termux, terminal), `PATH`, pasta de configuração, login, conectividade com o site e a API, porta do login e quais programas podem abrir o navegador. Use `--open-test` para tentar abrir o navegador de verdade e `--json` para automação.
+Mostra, em um comando, versão, caminho do executável, ambiente (Termux, terminal), `PATH`, pasta de configuração, login, conectividade com o site e a API, porta do login e quais programas podem abrir o navegador. Use `--open-test` para tentar abrir o navegador de verdade, `--json` para automação e `--dump` para ver os dados brutos de aplicações e status devolvidos pela API (útil para suporte; confira antes de compartilhar).
 
 ## 🛠️ Como funciona
 
@@ -213,8 +213,8 @@ make build   # gera dist/venix
 Basta enviar uma tag de versão:
 
 ```bash
-git tag v1.0.16
-git push origin v1.0.16
+git tag v1.0.17
+git push origin v1.0.17
 ```
 
 O GitHub Actions testa, compila as 7 plataformas, valida cada binário, gera o `SHA256SUMS`, publica a release e, por fim, o pacote npm (Trusted Publishing ou o secret `NPM_TOKEN`). Detalhes em [`GITHUB-AUTOMATICO.md`](GITHUB-AUTOMATICO.md).

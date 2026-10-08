@@ -57,27 +57,105 @@ func (f *appsFeed) app(id string) map[string]any {
 	return f.apps[id]
 }
 
-// mergeStatus copia para cada app os campos do endpoint de status (mesmo id).
-func mergeStatus(apps []map[string]any, status map[string]any) {
-	byID := map[string]map[string]any{}
-	for _, key := range []string{"apps", "applications", "data"} {
-		if list, ok := status[key].([]any); ok {
-			for _, value := range list {
-				if m, ok := value.(map[string]any); ok {
-					byID[fmt.Sprint(m["id"])] = m
+func idOf(m map[string]any) string {
+	for _, key := range []string{"id", "appId", "app_id", "_id"} {
+		if v, ok := m[key]; ok && v != nil && fmt.Sprint(v) != "" {
+			return fmt.Sprint(v)
+		}
+	}
+	return ""
+}
+
+var statusKeys = []string{"status", "state", "app_status", "appStatus", "container_status", "instance_status", "instanceStatus"}
+var boolStatusKeys = []string{"running", "is_running", "isRunning", "online", "is_online", "isOnline", "active"}
+
+func hasStatus(m map[string]any) bool {
+	for _, key := range append(append([]string{}, statusKeys...), boolStatusKeys...) {
+		if _, ok := m[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// statusRaw extrai o status de uma aplicação, aceitando textos, booleanos e objetos aninhados.
+func statusRaw(app map[string]any) string {
+	for _, key := range statusKeys {
+		switch v := app[key].(type) {
+		case string:
+			if v != "" {
+				return v
+			}
+		case bool:
+			if v {
+				return "online"
+			}
+			return "offline"
+		case map[string]any:
+			for _, inner := range []string{"status", "state", "name"} {
+				if text, ok := v[inner].(string); ok && text != "" {
+					return text
 				}
 			}
 		}
 	}
-	if len(byID) == 0 {
-		for id, value := range status {
-			if m, ok := value.(map[string]any); ok {
-				byID[id] = m
+	for _, key := range boolStatusKeys {
+		if v, ok := app[key].(bool); ok {
+			if v {
+				return "online"
+			}
+			return "offline"
+		}
+	}
+	return ""
+}
+
+// collectStatus indexa, por id (ou nome), os objetos de status devolvidos pela API.
+func collectStatus(value any, byKey map[string]map[string]any, depth int) {
+	switch v := value.(type) {
+	case []any:
+		for _, item := range v {
+			if m, ok := item.(map[string]any); ok {
+				if id := idOf(m); id != "" {
+					byKey[id] = m
+				}
+				if name, ok := m["name"].(string); ok && name != "" {
+					byKey[name] = m
+				}
+			}
+		}
+	case map[string]any:
+		for key, item := range v {
+			switch x := item.(type) {
+			case string:
+				byKey[key] = map[string]any{"status": x}
+			case bool:
+				byKey[key] = map[string]any{"running": x}
+			case map[string]any:
+				if hasStatus(x) {
+					byKey[key] = x
+				} else if depth < 2 {
+					collectStatus(x, byKey, depth+1)
+				}
+			case []any:
+				if depth < 2 {
+					collectStatus(x, byKey, depth+1)
+				}
 			}
 		}
 	}
+}
+
+// mergeStatus copia para cada app os campos do endpoint de status (mesmo id ou nome).
+func mergeStatus(apps []map[string]any, status map[string]any) {
+	byKey := map[string]map[string]any{}
+	collectStatus(status, byKey, 0)
 	for _, app := range apps {
-		if extra, ok := byID[fmt.Sprint(app["id"])]; ok {
+		extra, ok := byKey[fmt.Sprint(app["id"])]
+		if !ok {
+			extra, ok = byKey[fmt.Sprint(app["name"])]
+		}
+		if ok {
 			for k, v := range extra {
 				if v != nil {
 					app[k] = v

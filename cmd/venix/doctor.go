@@ -29,15 +29,21 @@ type check struct {
 }
 
 func doctorCommand() *cobra.Command {
-	var jsonOutput, openTest bool
+	var jsonOutput, openTest, dump bool
 	c := &cobra.Command{
 		Use:   "doctor",
 		Short: "Diagnostica instalação, login, API e navegador",
 		Args:  cobra.NoArgs,
-		RunE:  func(*cobra.Command, []string) error { return runDoctor(jsonOutput, openTest) },
+		RunE: func(*cobra.Command, []string) error {
+			if dump {
+				return runDump()
+			}
+			return runDoctor(jsonOutput, openTest)
+		},
 	}
 	c.Flags().BoolVar(&jsonOutput, "json", false, "imprime o diagnóstico em JSON")
 	c.Flags().BoolVar(&openTest, "open-test", false, "tenta abrir o navegador de verdade")
+	c.Flags().BoolVar(&dump, "dump", false, "mostra os dados brutos de aplicações e status da API (para suporte)")
 	return c
 }
 
@@ -96,11 +102,18 @@ func doctorChecks(openTest bool) []check {
 
 	// Executável
 	exe, err := os.Executable()
+	linkerMode := runtime.GOOS == "android" && strings.Contains(exe, "linker")
+	self := exe
+	if err != nil || linkerMode {
+		if abs, e := filepath.Abs(os.Args[0]); e == nil {
+			self = abs
+		}
+	}
 	switch {
 	case err != nil:
 		add("Executável", "warn", "não foi possível descobrir o caminho: "+err.Error())
-	case runtime.GOOS == "android" && strings.Contains(exe, "linker"):
-		add("Executável", "warn", "os.Executable aponta para o linker: "+exe+" • argv0: "+os.Args[0])
+	case linkerMode:
+		add("Executável", "ok", "iniciado pelo linker do Android (normal no Termux) • argv0: "+os.Args[0])
 	default:
 		add("Executável", "ok", exe+" • argv0: "+os.Args[0])
 	}
@@ -116,12 +129,12 @@ func doctorChecks(openTest bool) []check {
 
 	// PATH
 	if found, ok := browser.LookPath("venix"); !ok {
-		add("PATH", "warn", "o comando venix não está no PATH; diretório do executável: "+filepath.Dir(exe))
-	} else if a, errA := os.Stat(found); errA == nil && err == nil {
-		if b, errB := os.Stat(exe); errB == nil && os.SameFile(a, b) {
+		add("PATH", "warn", "o comando venix não está no PATH; diretório do executável: "+filepath.Dir(self))
+	} else if a, errA := os.Stat(found); errA == nil {
+		if b, errB := os.Stat(self); errB == nil && os.SameFile(a, b) {
 			add("PATH", "ok", "venix → "+found)
 		} else {
-			add("PATH", "warn", "venix no PATH é "+found+", diferente deste executável")
+			add("PATH", "warn", "venix no PATH é "+found+", diferente deste executável ("+self+")")
 		}
 	} else {
 		add("PATH", "ok", "venix → "+found)
@@ -196,7 +209,11 @@ func doctorChecks(openTest bool) []check {
 	if len(found) == 0 {
 		add("Navegador", "warn", "nenhum programa para abrir links; ausentes: "+strings.Join(missing, ", "))
 	} else {
-		add("Navegador", "ok", "disponíveis: "+strings.Join(found, ", ")+" • ausentes: "+strings.Join(missing, ", "))
+		detail := "disponíveis: " + strings.Join(found, ", ")
+		if len(missing) > 0 {
+			detail += " • ausentes: " + strings.Join(missing, ", ")
+		}
+		add("Navegador", "ok", detail)
 	}
 	if openTest {
 		if ok, detail := browser.OpenDetailed(toolsURL); ok {
@@ -217,5 +234,30 @@ func probe(url string) check {
 		return check{Status: "fail", Detail: url + ": " + err.Error()}
 	}
 	res.Body.Close()
-	return check{Status: "ok", Detail: fmt.Sprintf("%s → HTTP %d • %d ms", url, res.StatusCode, time.Since(start).Milliseconds())}
+	note := ""
+	if res.StatusCode >= 400 {
+		note = " (servidor alcançável)"
+	}
+	return check{Status: "ok", Detail: fmt.Sprintf("%s → HTTP %d%s • %d ms", url, res.StatusCode, note, time.Since(start).Milliseconds())}
+}
+
+// runDump imprime os dados brutos usados pelo `venix apps`, para diagnóstico.
+// Atenção: confira o conteúdo antes de compartilhar.
+func runDump() error {
+	c, err := client()
+	if err != nil {
+		return err
+	}
+	out := map[string]any{}
+	if me, err := c.GetMe(); err != nil {
+		out["me_error"] = err.Error()
+	} else {
+		out["me_applications"] = applications(me)
+	}
+	if status, err := c.AppsStatus(); err != nil {
+		out["apps_status_error"] = err.Error()
+	} else {
+		out["apps_status"] = status
+	}
+	return output.JSON(true, out)
 }
