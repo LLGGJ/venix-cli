@@ -43,7 +43,7 @@
 curl -fsSL https://raw.githubusercontent.com/LLGGJ/venix-cli/main/install.sh | sh
 ```
 
-Detecta o sistema (🐧 Linux, 🍎 macOS ou 🤖 Termux), baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.18 sh install.sh`.
+Detecta o sistema (🐧 Linux, 🍎 macOS ou 🤖 Termux), baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.19 sh install.sh`.
 
 </details>
 
@@ -139,7 +139,7 @@ O agrupamento `venix app <comando>` também existe. Para scripts, use `--json` (
 - Atualiza **sozinho a cada 5 segundos**, mantendo a seleção.
 - Mostra status colorido (`● ONLINE`, `● OFFLINE`, `● INICIANDO`...) e uso de CPU e memória, quando a API informar.
 - Layout **responsivo**: tabela em telas largas e lista empilhada em telas estreitas, como as do Termux.
-- Navegação: `↑` `↓` ou `j` `k`, `Enter` para escolher e `Esc` para sair. As ações (📜 logs, 🔄 reiniciar, ⚡ iniciar, 🛑 parar, 💾 backup, 🚀 deploy, ❌ excluir) têm emoji e cor próprios. Depois de ver os logs ou executar uma ação, um botão **Voltar** (Enter) retorna ao menu da aplicação.
+- Navegação: `↑` `↓` ou `j` `k`, `Enter` para escolher e `Esc` para sair. As ações (🌐 visualizar pela web — abre o domínio e a rota exatos do app —, 🔎 detalhes em texto, 📜 logs, 🔄 reiniciar, ⚡ iniciar, 🛑 parar, 💾 backup, 🚀 deploy, ❌ excluir, com confirmação) têm emoji e cor próprios. Depois de ver os logs ou executar uma ação, um botão **Voltar** (Enter) retorna ao menu da aplicação.
 
 ### `venix doctor`
 
@@ -213,8 +213,8 @@ make build   # gera dist/venix
 Basta enviar uma tag de versão:
 
 ```bash
-git tag v1.0.18
-git push origin v1.0.18
+git tag v1.0.19
+git push origin v1.0.19
 ```
 
 O GitHub Actions testa, compila as 7 plataformas, valida cada binário, gera o `SHA256SUMS`, publica a release e, por fim, o pacote npm (Trusted Publishing ou o secret `NPM_TOKEN`). Detalhes em [`GITHUB-AUTOMATICO.md`](GITHUB-AUTOMATICO.md).

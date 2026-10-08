@@ -1,10 +1,10 @@
-VENIX CLI v1.0.18 (corrige o erro "undefined: dir" do go vet: este ZIP traz auth.go e store.go consistentes)
+VENIX CLI v1.0.19 (corrige o erro "undefined: dir" do go vet: este ZIP traz auth.go e store.go consistentes)
 
 COMO APLICAR
 1. Copie o conteúdo do ZIP por cima do repositório (mantendo as pastas).
 2. Antes de subir (não foi possível compilar Go aqui):
      make fmt && go vet ./... && go test ./... && go build -o /tmp/v ./cmd/venix && /tmp/v doctor
-3. git add -A && git commit && git push, e envie a tag v1.0.18 (o site já cria a tag).
+3. git add -A && git commit && git push, e envie a tag v1.0.19 (o site já cria a tag).
 
 NOVO
  venix doctor           diagnóstico (versão, login, API, PATH, navegador; --open-test, --json)
@@ -16,5 +16,6 @@ REMOVIDO
  npm-package/package.json: campo "license" (eu tinha colocado MIT sem você pedir)
  README: seção de configuração/variáveis de ambiente
 
-v1.0.18: navegador no Termux passa pelo linker64 (execve direto dava permission denied); status do venix apps mais tolerante; venix doctor --dump.
-v1.0.18: ações do app com emoji, sem "Ver detalhes"; logs e resultados com botão Voltar; instaladores mostram "<emoji> <sistema> detectado".
+v1.0.19: navegador no Termux passa pelo linker64 (execve direto dava permission denied); status do venix apps mais tolerante; venix doctor --dump.
+v1.0.19: ações do app com emoji, sem "Ver detalhes"; logs e resultados com botão Voltar; instaladores mostram "<emoji> <sistema> detectado".
+v1.0.19: ação "Visualizar pela web" em primeiro, "Detalhes" em texto, confirmação antes de excluir.

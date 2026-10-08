@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LLGGJ/venix-cli/internal/api"
+	"github.com/LLGGJ/venix-cli/internal/browser"
 	"github.com/LLGGJ/venix-cli/internal/menu"
 	"github.com/LLGGJ/venix-cli/internal/output"
 	"github.com/LLGGJ/venix-cli/internal/store"
@@ -142,10 +143,34 @@ func printApps(apps []map[string]any) {
 	}
 }
 
+const (
+	actWeb = iota
+	actDetails
+	actLogs
+	actRestart
+	actStart
+	actStop
+	actBackup
+	actDeploy
+	actDelete
+	actBack
+)
+
+func confirmDelete(name string) (bool, error) {
+	items := []menu.Item{
+		{Title: "🔙 Cancelar", Tone: menu.ToneMuted},
+		{Title: "❌ Sim, excluir (irreversível)", Tone: menu.ToneBad},
+	}
+	selected, err := menu.SelectItems("EXCLUIR • "+name, nil, items)
+	return selected == 1, err
+}
+
 func appActions(c *api.Client, app map[string]any) error {
 	id := appValue(app, "id")
 	name := appValue(app, "name", "appName")
 	items := []menu.Item{
+		{Title: "🌐 Visualizar pela web", Tone: menu.ToneGood},
+		{Title: "🔎 Detalhes", Tone: menu.ToneInfo},
 		{Title: "📜 Ver logs", Tone: menu.ToneInfo},
 		{Title: "🔄 Reiniciar", Tone: menu.ToneWarn},
 		{Title: "⚡ Iniciar", Tone: menu.ToneGood},
@@ -157,28 +182,50 @@ func appActions(c *api.Client, app map[string]any) error {
 	}
 	for {
 		selected, e := menu.SelectItems("AÇÕES • "+name, nil, items)
-		if e != nil || selected < 0 || selected == len(items)-1 {
+		if e != nil || selected < 0 || selected == actBack {
 			return e
 		}
 		switch selected {
-		case 0:
+		case actWeb:
+			target := webURL(app)
+			if target == "" {
+				output.Warning("A API não informou o endereço web desta aplicação. Rode: venix doctor --dump")
+				break
+			}
+			output.Heading("🌐 " + name)
+			output.Link("Endereço:", target)
+			if ok, detail := browser.OpenDetailed(target); ok {
+				output.Muted("Abrindo no navegador...")
+			} else {
+				output.Warning("Não consegui abrir o navegador: " + detail)
+			}
+		case actDetails:
+			printAppDetails(app)
+		case actLogs:
 			output.Heading("LOGS • " + name)
 			output.Muted("Carregando logs recentes...")
 			e = c.StreamLogs(id, false, output.Log)
-		case 1, 2, 3:
-			actions := []string{"RESTART", "START", "STOP"}
-			if _, e = c.AppAction(id, actions[selected-1]); e == nil {
-				output.Success([]string{"Reiniciado", "Iniciado", "Parado"}[selected-1] + ": " + name)
+		case actRestart, actStart, actStop:
+			verbs := map[int][2]string{actRestart: {"RESTART", "Reiniciado"}, actStart: {"START", "Iniciado"}, actStop: {"STOP", "Parado"}}
+			if _, e = c.AppAction(id, verbs[selected][0]); e == nil {
+				output.Success(verbs[selected][1] + ": " + name)
 			}
-		case 4:
+		case actBackup:
 			if _, e = c.Snapshot(id, "backup-"+time.Now().Format("20060102-150405")); e == nil {
 				output.Success("Backup criado: " + name)
 			}
-		case 5:
+		case actDeploy:
 			if _, e = c.Deploy(id); e == nil {
 				output.Success("Deploy disparado: " + name)
 			}
-		case 6:
+		case actDelete:
+			confirmed, err := confirmDelete(name)
+			if err != nil {
+				return err
+			}
+			if !confirmed {
+				continue
+			}
 			if _, e = c.Remove(id); e == nil {
 				output.Success("Aplicação excluída: " + name)
 				return menu.Button("Voltar")
@@ -192,6 +239,7 @@ func appActions(c *api.Client, app map[string]any) error {
 		}
 	}
 }
+
 func getApp(c *api.Client, ref string) (map[string]any, error) {
 	m, e := c.GetMe()
 	if e != nil {
