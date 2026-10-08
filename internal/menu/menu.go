@@ -201,3 +201,32 @@ func readKey(r io.Reader) (string, error) {
 func IsTerminal() bool {
 	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd())) && !strings.EqualFold(os.Getenv("TERM"), "dumb")
 }
+
+// Button mostra um botão com o texto label abaixo da saída atual e espera o
+// usuário confirmar com Enter (Esc, q e Ctrl+C também voltam). Sem terminal, não espera.
+func Button(label string) error {
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
+		return nil
+	}
+	state, err := term.MakeRaw(fd)
+	if err != nil {
+		return err
+	}
+	defer term.Restore(fd, state)
+
+	button := "[ ❯ " + label + " ]  Enter para voltar"
+	if colorsEnabled() {
+		button = "\033[1;30;46m ❯ " + label + " \033[0m  \033[2mEnter para voltar\033[0m"
+	}
+	fmt.Fprint(os.Stdout, "\r\n"+button+"\r\n")
+	for {
+		key, err := readKey(os.Stdin)
+		if err != nil {
+			return err
+		}
+		if key == "enter" || key == "esc" || key == "q" {
+			return nil
+		}
+	}
+}

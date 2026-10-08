@@ -129,3 +129,12 @@ func TestSelectedAppNameIsColored(t *testing.T) {
 		t.Fatalf("app selecionado deveria usar stSelected:\n%s", plainFrame(lines))
 	}
 }
+
+func TestRuneLenCountsWideEmoji(t *testing.T) {
+	if got := runeLen("🔄 Reiniciar"); got != 12 {
+		t.Fatalf("runeLen = %d, want 12", got)
+	}
+	if got := runeLen("❯ ● ONLINE"); got != 10 {
+		t.Fatalf("runeLen = %d, want 10", got)
+	}
+}

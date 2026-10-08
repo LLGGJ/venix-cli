@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -147,15 +146,14 @@ func appActions(c *api.Client, app map[string]any) error {
 	id := appValue(app, "id")
 	name := appValue(app, "name", "appName")
 	items := []menu.Item{
-		{Title: "Ver detalhes", Tone: menu.ToneInfo},
-		{Title: "Ver logs", Tone: menu.ToneInfo},
-		{Title: "Reiniciar", Tone: menu.ToneWarn},
-		{Title: "Iniciar", Tone: menu.ToneGood},
-		{Title: "Parar", Tone: menu.ToneBad},
-		{Title: "Criar backup", Tone: menu.ToneInfo},
-		{Title: "Fazer deploy", Tone: menu.ToneGood},
-		{Title: "Excluir", Tone: menu.ToneBad},
-		{Title: "Voltar", Tone: menu.ToneMuted},
+		{Title: "📜 Ver logs", Tone: menu.ToneInfo},
+		{Title: "🔄 Reiniciar", Tone: menu.ToneWarn},
+		{Title: "⚡ Iniciar", Tone: menu.ToneGood},
+		{Title: "🛑 Parar", Tone: menu.ToneBad},
+		{Title: "💾 Criar backup", Tone: menu.ToneInfo},
+		{Title: "🚀 Fazer deploy", Tone: menu.ToneGood},
+		{Title: "❌ Excluir", Tone: menu.ToneBad},
+		{Title: "🔙 Voltar", Tone: menu.ToneMuted},
 	}
 	for {
 		selected, e := menu.SelectItems("AÇÕES • "+name, nil, items)
@@ -164,37 +162,32 @@ func appActions(c *api.Client, app map[string]any) error {
 		}
 		switch selected {
 		case 0:
-			b, _ := json.MarshalIndent(app, "", "  ")
-			output.Heading("DETALHES • " + name)
-			fmt.Println(output.ColorJSON(b))
-			if url := appURL(app); url != "-" {
-				output.Link("Acessar aplicação:", url)
-			}
-		case 1:
-			output.Info("Mostrando logs recentes; use Ctrl+C para sair")
-			if e = c.StreamLogs(id, false, output.Log); e != nil {
-				return e
-			}
-		case 2, 3, 4:
+			output.Heading("LOGS • " + name)
+			output.Muted("Carregando logs recentes...")
+			e = c.StreamLogs(id, false, output.Log)
+		case 1, 2, 3:
 			actions := []string{"RESTART", "START", "STOP"}
-			if _, e = c.AppAction(id, actions[selected-2]); e == nil {
-				output.Success([]string{"Reiniciado", "Iniciado", "Parado"}[selected-2] + ": " + name)
+			if _, e = c.AppAction(id, actions[selected-1]); e == nil {
+				output.Success([]string{"Reiniciado", "Iniciado", "Parado"}[selected-1] + ": " + name)
 			}
-		case 5:
+		case 4:
 			if _, e = c.Snapshot(id, "backup-"+time.Now().Format("20060102-150405")); e == nil {
 				output.Success("Backup criado: " + name)
 			}
-		case 6:
+		case 5:
 			if _, e = c.Deploy(id); e == nil {
 				output.Success("Deploy disparado: " + name)
 			}
-		case 7:
+		case 6:
 			if _, e = c.Remove(id); e == nil {
 				output.Success("Aplicação excluída: " + name)
-				return nil
+				return menu.Button("Voltar")
 			}
 		}
 		if e != nil {
+			return e
+		}
+		if e = menu.Button("Voltar"); e != nil {
 			return e
 		}
 	}

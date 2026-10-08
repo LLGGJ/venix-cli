@@ -2,7 +2,6 @@ package menu
 
 import (
 	"strings"
-	"unicode/utf8"
 )
 
 // Tone indica a cor semântica de um item (nunca é a única pista visual).
@@ -76,7 +75,20 @@ var hints = []string{
 	"↑↓ • Enter • Esc",
 }
 
-func runeLen(s string) int { return utf8.RuneCountInString(s) }
+// runeLen devolve a largura em colunas do terminal: emojis largos ocupam 2.
+func runeLen(s string) int {
+	n := 0
+	for _, r := range s {
+		switch {
+		case r == 0xFE0F || r == 0x200D:
+		case r >= 0x1F300 && r <= 0x1FAFF, r == 0x26A1, r == 0x274C:
+			n += 2
+		default:
+			n++
+		}
+	}
+	return n
+}
 
 func padRight(s string, n int) string {
 	if d := n - runeLen(s); d > 0 {

@@ -5,6 +5,7 @@
 # Variáveis opcionais: VENIX_VERSION, VENIX_INSTALL_DIR, VENIX_RELEASE_BASE_URL
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 $repo = 'LLGGJ/venix-cli'
 
 $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
@@ -39,6 +40,7 @@ try {
   $expected = ($line -split '\s+')[0].ToLower()
   $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLower()
   if ($expected -ne $actual) { throw "SHA-256 inválido para $archive" }
+  Write-Host "🪟 Windows detectado ($arch)"
 
   $extract = Join-Path $tmp 'x'
   Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force

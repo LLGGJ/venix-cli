@@ -67,6 +67,11 @@ Darwin) OS=darwin ;;
 *) fail "sistema não suportado: $(uname -s). No Windows use install.ps1" ;;
 esac
 TARGET="${OS}_${ARCH}"
+case "$OS" in
+linux) SYS_EMOJI="🐧"; SYS_NAME="Linux" ;;
+darwin) SYS_EMOJI="🍎"; SYS_NAME="macOS" ;;
+android) SYS_EMOJI="🤖"; SYS_NAME="Android (Termux)" ;;
+esac
 
 # --- versão ----------------------------------------------------------------
 VERSION="${VENIX_VERSION:-}"
@@ -108,6 +113,7 @@ WANT="$(awk -v f="$ARCHIVE" '{ n=$2; sub(/^\*/, "", n); if (n == f) { print tolo
 [ -n "$WANT" ] || fail "$ARCHIVE não consta em SHA256SUMS"
 GOT="$(sha256_of "$TMP/$ARCHIVE")"
 [ "$GOT" = "$WANT" ] || fail "SHA-256 inválido para $ARCHIVE"
+say "$SYS_EMOJI $SYS_NAME detectado ($ARCH)"
 
 tar -xzf "$TMP/$ARCHIVE" -C "$TMP" || fail "falha ao extrair $ARCHIVE"
 [ -f "$TMP/venix" ] || fail "venix não encontrado dentro de $ARCHIVE"

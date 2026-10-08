@@ -120,7 +120,7 @@ func doctorChecks(openTest bool) []check {
 
 	// Ambiente
 	termux := os.Getenv("TERMUX_VERSION") != "" || strings.Contains(os.Getenv("PREFIX"), "com.termux")
-	add("Ambiente", "ok", fmt.Sprintf("termux=%t • TERM=%s • cores=%t • terminal interativo=%t", termux, os.Getenv("TERM"), os.Getenv("NO_COLOR") == "", menu.IsTerminal()))
+	add("Ambiente", "ok", fmt.Sprintf("%s • termux=%t • TERM=%s • cores=%t • terminal interativo=%t", systemLabel(), termux, os.Getenv("TERM"), os.Getenv("NO_COLOR") == "", menu.IsTerminal()))
 	if w, h, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 		add("Terminal", "ok", fmt.Sprintf("%d colunas × %d linhas", w, h))
 	} else {
@@ -260,4 +260,19 @@ func runDump() error {
 		out["apps_status"] = status
 	}
 	return output.JSON(true, out)
+}
+
+// systemLabel devolve o sistema detectado com seu emoji, ex.: "🐧 Linux detectado".
+func systemLabel() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "🐧 Linux detectado"
+	case "darwin":
+		return "🍎 macOS detectado"
+	case "windows":
+		return "🪟 Windows detectado"
+	case "android":
+		return "🤖 Android (Termux) detectado"
+	}
+	return "💻 " + runtime.GOOS + " detectado"
 }

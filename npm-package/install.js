@@ -44,6 +44,13 @@ if (!osName || !archName || !SUPPORTED.has(target)) {
   throw new Error(`Plataforma não suportada: ${platform}/${arch}`);
 }
 
+const SYSTEMS = {
+  linux: ['🐧', 'Linux'],
+  darwin: ['🍎', 'macOS'],
+  windows: ['🪟', 'Windows'],
+  android: ['🤖', 'Android (Termux)']
+};
+
 const isWindows = osName === 'windows';
 const ext = isWindows ? '.zip' : '.tar.gz';
 const archiveName = `venix_${version}_${target}${ext}`;
@@ -133,10 +140,27 @@ function verify(expectedVersion) {
   }
 }
 
+// npm esconde a saída do postinstall; escrevemos direto no terminal quando possível.
+function announce(message) {
+  try {
+    const fd = fs.openSync(isWindows ? '\\\\.\\CONOUT$' : '/dev/tty', 'w');
+    fs.writeSync(fd, `${message}\n`);
+    fs.closeSync(fd);
+  } catch {
+    console.log(message);
+  }
+}
+
+function announceSystem() {
+  const [emoji, label] = SYSTEMS[osName];
+  announce(`${emoji} ${label} detectado (${archName})`);
+}
+
 async function main() {
   if (process.env.VENIX_BINARY_PATH) {
     place(process.env.VENIX_BINARY_PATH);
     verify(null);
+    announceSystem();
     console.log(`Venix: binário local instalado para ${target}.`);
     return;
   }
@@ -148,6 +172,7 @@ async function main() {
     const want = await expectedChecksum(archiveName);
     const got = crypto.createHash('sha256').update(fs.readFileSync(archive)).digest('hex');
     if (got !== want) throw new Error(`SHA-256 inválido para ${archiveName}`);
+    announceSystem();
     place(extract(archive, tmp));
     verify(version);
     console.log(`Venix: ${version} instalado para ${target}.`);
