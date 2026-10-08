@@ -89,3 +89,43 @@ func TestRenderFrameUsesCarriageReturn(t *testing.T) {
 		t.Fatalf("todas as quebras devem ser \\r\\n em modo raw: %q", out)
 	}
 }
+
+func findSeg(lines []line, text string) (seg, bool) {
+	for _, l := range lines {
+		for _, s := range l {
+			if s.text == text {
+				return s, true
+			}
+		}
+	}
+	return seg{}, false
+}
+
+func TestTitleStyles(t *testing.T) {
+	items := []Item{{Title: "Reiniciar", Tone: ToneWarn}, {Title: "Excluir", Tone: ToneBad}}
+	lines, _ := buildFrame("AÇÕES • api", nil, items, 1, 0, 60, 20)
+	if s, ok := findSeg(lines, "Reiniciar"); !ok || s.st != stWarn {
+		t.Fatalf("ação não selecionada deveria usar a cor do tom: %+v", s)
+	}
+	if s, ok := findSeg(lines, "Excluir"); !ok || s.st != stSelBad {
+		t.Fatalf("ação selecionada deveria usar o tom em negrito: %+v", s)
+	}
+	if s, ok := findSeg(lines, "api"); !ok || s.st != stSelected {
+		t.Fatalf("nome do app no cabeçalho deveria ser colorido: %+v", s)
+	}
+}
+
+func TestSelectedAppNameIsColored(t *testing.T) {
+	lines, _ := buildFrame("APLICAÇÕES", nil, sampleApps(), 0, 0, 100, 30)
+	found := false
+	for _, l := range lines {
+		for _, s := range l {
+			if strings.HasPrefix(s.text, "api-darck-shop") && s.st == stSelected {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("app selecionado deveria usar stSelected:\n%s", plainFrame(lines))
+	}
+}

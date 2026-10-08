@@ -26,6 +26,8 @@ jobs:
         with:
           node-version: '22'
       - run: |
+          sh -n install.sh
+          for f in scripts/release/*.sh; do bash -n "$f"; done
           V=0.0.0
           bash scripts/release/check-names.sh "$V"
           bash scripts/release/check-npm.sh "$V"

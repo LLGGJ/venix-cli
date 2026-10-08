@@ -183,6 +183,14 @@ jobs:
           if [ "${{ needs.prepare.outputs.prerelease }}" = true ]; then PRE=(--prerelease); fi
           gh release create "$TAG" dist/* --draft --verify-tag --title "Venix CLI $TAG" --generate-notes "${PRE[@]}"
           gh release edit "$TAG" --draft=false
+      - name: Gerar manifestos (Homebrew, Scoop, Winget, Termux) e anexar
+        env:
+          LICENSE_SPDX: ${{ vars.LICENSE_SPDX }}
+        run: |
+          set -euo pipefail
+          bash scripts/release/gen-packaging.sh "$VERSION" dist/SHA256SUMS dist-pkg
+          tar -czf "packaging_${VERSION}.tar.gz" -C dist-pkg .
+          gh release upload "v${VERSION}" "packaging_${VERSION}.tar.gz"
 
   npm:
     name: Publicar no npm

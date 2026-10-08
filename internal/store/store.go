@@ -23,6 +23,9 @@ func dir() string {
 	}
 	return filepath.Join(d, "venix")
 }
+// Dir devolve o diretório onde as credenciais são guardadas.
+func Dir() string { return dir() }
+
 func Creds() (*Credentials, error) {
 	b, e := os.ReadFile(filepath.Join(dir(), "credentials.json"))
 	if e != nil {

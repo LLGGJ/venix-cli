@@ -118,3 +118,18 @@ func ColorJSON(b []byte) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// Check imprime o resultado de uma verificação (ok, warn ou fail) e, abaixo, o detalhe.
+func Check(status, label, detail string) {
+	icon, code := "✔", green
+	switch status {
+	case "warn":
+		icon, code = "⚠", yellow
+	case "fail":
+		icon, code = "✖", red
+	}
+	fmt.Fprintln(os.Stdout, paint(code, icon)+" "+paint(bold, label))
+	if detail != "" {
+		fmt.Fprintln(os.Stdout, "    "+paint(gray, detail))
+	}
+}

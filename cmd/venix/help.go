@@ -84,7 +84,10 @@ func openToolsPage() {
 	if os.Getenv("VENIX_NO_OPEN") != "" || os.Getenv("CI") != "" || !menu.IsTerminal() {
 		return
 	}
-	if browser.Open(toolsURL) {
+	ok, detail := browser.OpenDetailed(toolsURL)
+	if ok {
 		output.Muted("Abrindo " + toolsURL + " no navegador...")
+	} else if os.Getenv("VENIX_DEBUG") != "" {
+		output.Muted("Não consegui abrir o navegador: " + detail)
 	}
 }

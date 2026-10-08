@@ -36,5 +36,5 @@ func main() {
 }
 
 func addCommands(root *cobra.Command) {
-	root.AddCommand(appsCmd(), upCmd(), pushCmd(), linkCmd(), action("start", "Inicia aplicação"), action("stop", "Para aplicação"), action("restart", "Reinicia aplicação"), logsCmd(), backupCmd(), ramCmd(), deleteCmd())
+	root.AddCommand(doctorCommand(), appsCmd(), upCmd(), pushCmd(), linkCmd(), action("start", "Inicia aplicação"), action("stop", "Para aplicação"), action("restart", "Reinicia aplicação"), logsCmd(), backupCmd(), ramCmd(), deleteCmd())
 }

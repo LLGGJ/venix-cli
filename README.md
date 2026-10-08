@@ -1,156 +1,232 @@
-# Venix CLI
+<div align="center">
 
-CLI nativa da VenixCloud, escrita em Go, com binários para Linux, macOS e Windows.
+<img src="docs/assets/banner.svg" alt="Venix CLI" width="100%">
 
-## Instalação
+<br>
 
-### npm (Linux, macOS, Windows e Termux)
+[![Release](https://img.shields.io/github/v/release/LLGGJ/venix-cli?style=for-the-badge&color=5b7cff&label=release)](https://github.com/LLGGJ/venix-cli/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/LLGGJ/venix-cli/release.yml?style=for-the-badge&label=build)](https://github.com/LLGGJ/venix-cli/actions)
+![Go](https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![Plataformas](https://img.shields.io/badge/Linux%20·%20macOS%20·%20Windows%20·%20Termux-35e0a1?style=for-the-badge)
 
-O pacote npm é somente um instalador: ele baixa o binário nativo Go da GitHub Release de mesma versão, confere o SHA-256 e verifica `--version`.
+**Gerencie suas aplicações na VenixCloud sem sair do terminal.**
+
+[Instalação](#-instalação) · [Primeiros passos](#-primeiros-passos) · [Comandos](#-comandos) · [Como funciona](#-como-funciona) · [Linguagens](#-linguagens-e-o-que-cada-uma-faz) · [Desenvolvimento](#-desenvolvimento)
+
+<br>
+
+<img src="docs/assets/demo.svg" alt="Demonstração animada da Venix CLI" width="90%">
+
+<sub>Animação ilustrativa com dados de exemplo.</sub>
+
+</div>
+
+---
+
+## ✨ Destaques
+
+| | |
+|---|---|
+| ⚡ **Binário nativo em Go** | Um único executável, sem runtime para instalar. |
+| 📱 **Funciona no Termux** | Build Android dedicado (arm64) e interface adaptada a telas pequenas. |
+| 🖥️ **Menu interativo ao vivo** | `venix apps` atualiza status, CPU e memória sozinho a cada poucos segundos. |
+| 🩺 **Diagnóstico embutido** | `venix doctor` verifica versão, login, API, PATH e se o navegador abre. |
+| 🔐 **Login seguro** | OAuth2 com PKCE: sem `client_secret` e sem senha no terminal. |
+| 📦 **Instalação verificada** | Todo download confere o SHA-256 publicado na release. |
+
+## 📦 Instalação
+
+<details open>
+<summary><b>Instalador de uma linha</b> — Linux, macOS e Termux (sem npm)</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LLGGJ/venix-cli/main/install.sh | sh
+```
+
+Detecta o sistema, baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.13 sh install.sh`.
+
+</details>
+
+<details>
+<summary><b>Windows</b> — PowerShell</summary>
+
+```powershell
+irm https://raw.githubusercontent.com/LLGGJ/venix-cli/main/install.ps1 | iex
+```
+
+Instala em `%LOCALAPPDATA%\Programs\venix` e adiciona ao PATH do usuário.
+
+</details>
+
+<details>
+<summary><b>npm</b> — Linux, macOS, Windows e Termux</summary>
+
+O pacote npm é só um instalador: baixa o binário nativo da release de mesma versão e verifica `--version`.
 
 ```bash
 # Termux: pkg update && pkg install nodejs tar
 npm install -g venix
-venix --version
-venix help
 ```
 
-Plataformas: Linux, macOS e Windows (amd64 e arm64) e Android/Termux (arm64, asset `android_arm64`).
+Se o seu npm não executa scripts de instalação, o binário é baixado na primeira execução do `venix`.
 
-`venix login` abre o navegador automaticamente (no Termux, via `termux-open-url`). `venix` e `venix help` mostram a ajuda e abrem https://venixcloud.com/en/tools; defina `VENIX_NO_OPEN=1` para desativar.
+</details>
 
-Baixe o arquivo correspondente ao seu sistema na página de [Releases](https://github.com/LLGGJ/venix-cli/releases):
+<details>
+<summary><b>Homebrew · Scoop · Winget · pacote do Termux</b> — manifestos prontos</summary>
 
-- Linux: `.tar.gz`
-- macOS: `.tar.gz`
-- Windows: `.zip`
+A cada release o CI gera os manifestos desses gerenciadores (arquivo `packaging_<versão>.tar.gz` na página da release). A publicação nos repositórios oficiais ainda é manual, então por enquanto use as opções acima.
 
-Depois, coloque o executável `venix` no `PATH`.
-
-### Linux e macOS
-
-```bash
-curl -LO https://github.com/LLGGJ/venix-cli/releases/download/v1.0.5/venix_1.0.5_linux_amd64.tar.gz
-tar -xzf venix_1.0.5_linux_amd64.tar.gz
-chmod +x venix
-sudo install venix /usr/local/bin/venix
-venix --version
-```
-
-Escolha o artefato `arm64` em computadores ARM.
-
-## Login
-
-```bash
-venix login --client-id <id-publico-do-app-oauth>
-```
-
-Em SSH ou Termux, não abra o navegador automaticamente:
-
-```bash
-venix login --no-browser --client-id <id-publico-do-app-oauth>
-```
-
-A CLI usa OAuth2 com PKCE. Usuários não precisam de `client_secret`.
-
-Redirect padrão:
-
-```text
-http://127.0.0.1:53682/callback
-```
-
-## Comandos
-
-| Comando | Função |
+| Gerenciador | Situação |
 |---|---|
-| `venix login` | Autoriza a CLI com OAuth2 + PKCE |
-| `venix logout` | Remove as credenciais locais |
-| `venix whoami` | Mostra a sessão atual |
-| `venix apps` | Lista aplicações e abre o menu interativo |
+| Homebrew | Fórmula gerada; falta publicar em um tap |
+| Scoop | Manifesto gerado; falta publicar em um bucket |
+| Winget | Manifestos gerados; falta enviar PR ao `winget-pkgs` |
+| Termux (`pkg install venix`) | `build.sh` gerado; falta enviar PR ao `termux-packages` |
+
+</details>
+
+<details>
+<summary><b>Download manual</b></summary>
+
+Baixe o arquivo do seu sistema em [Releases](https://github.com/LLGGJ/venix-cli/releases), confira com o `SHA256SUMS` e coloque o executável `venix` no `PATH`.
+
+</details>
+
+### Plataformas suportadas
+
+| Sistema | Arquiteturas | Arquivo da release |
+|---|---|---|
+| 🐧 Linux | amd64 · arm64 | `venix_<versão>_linux_<arch>.tar.gz` |
+| 🍎 macOS | amd64 · arm64 | `venix_<versão>_darwin_<arch>.tar.gz` |
+| 🪟 Windows | amd64 · arm64 | `venix_<versão>_windows_<arch>.zip` |
+| 🤖 Android / Termux | arm64 | `venix_<versão>_android_arm64.tar.gz` |
+
+## 🚀 Primeiros passos
+
+```bash
+venix --version     # confere a instalação
+venix login         # abre o navegador e autoriza a CLI
+venix apps          # lista suas aplicações (menu interativo)
+venix doctor        # algo estranho? rode o diagnóstico
+```
+
+- O `venix login` abre o navegador sozinho (no Termux usa `termux-open-url`). Em SSH ou sem navegador, use `venix login --no-browser`.
+- As credenciais ficam em `~/.config/venix/credentials.json`, com permissão restrita.
+- `venix` e `venix help` mostram a ajuda e abrem [venixcloud.com/en/tools](https://venixcloud.com/en/tools) em terminais interativos. Defina `VENIX_NO_OPEN=1` para desativar.
+
+## 🧭 Comandos
+
+| Comando | O que faz |
+|---|---|
+| `venix login` / `logout` / `whoami` | Autoriza, encerra e mostra a sessão |
+| `venix apps` | Lista aplicações em um menu interativo **ao vivo** |
 | `venix up [nome]` | Cria uma aplicação a partir do diretório atual |
 | `venix push [app]` | Envia arquivos, extrai e reinicia |
 | `venix link [app]` | Vincula o diretório a uma aplicação |
-| `venix start [app]` | Inicia uma aplicação |
-| `venix stop [app]` | Para uma aplicação |
-| `venix restart [app]` | Reinicia uma aplicação |
-| `venix logs [app] [-f]` | Mostra ou acompanha logs SSE |
+| `venix start` · `stop` · `restart [app]` | Controla a aplicação |
+| `venix logs [app] [-f]` | Mostra ou acompanha os logs |
 | `venix backup [app]` | Cria um snapshot |
 | `venix deploy [app]` | Dispara um deploy |
 | `venix ram [app] <mb>` | Altera a memória |
 | `venix delete [app]` | Exclui uma aplicação |
+| `venix doctor` | Diagnostica instalação, login, API e navegador |
 
-Também existe o agrupamento equivalente `venix app <comando>`.
+O agrupamento `venix app <comando>` também existe. Para scripts, use `--json` (por exemplo, `venix apps --json`).
 
-### Menu interativo de aplicações
+### Menu `venix apps`
 
-Em um terminal, `venix apps` mostra nome, status e memória. Use as setas e Enter
-para escolher uma aplicação. Depois, outro menu permite:
+- Atualiza **sozinho a cada 5 segundos**, mantendo a seleção.
+- Mostra status colorido (`● ONLINE`, `● OFFLINE`, `● INICIANDO`...) e uso de CPU e memória, quando a API informar.
+- Layout **responsivo**: tabela em telas largas e lista empilhada em telas estreitas, como as do Termux.
+- Navegação: `↑` `↓` ou `j` `k`, `Enter` para escolher e `Esc` para sair. As ações (iniciar, parar, excluir...) têm cores próprias.
 
-- ver detalhes;
-- ver logs;
-- reiniciar, iniciar ou parar;
-- criar backup;
-- fazer deploy do commit configurado;
-- excluir a aplicação;
-- voltar à lista.
+### `venix doctor`
 
-Para scripts e automações, desative o menu com:
+Mostra, em um comando, versão, caminho do executável, ambiente (Termux, terminal), `PATH`, pasta de configuração, login, conectividade com o site e a API, porta do login e quais programas podem abrir o navegador. Use `--open-test` para tentar abrir o navegador de verdade e `--json` para automação.
 
-```bash
-venix apps --json
+## 🛠️ Como funciona
+
+```mermaid
+flowchart LR
+    A[Código Go<br>cmd/venix] -->|tag vX.Y.Z| B[GitHub Actions]
+    B --> C[Testes + build<br>7 plataformas]
+    C --> D[Validação dos binários<br>+ SHA256SUMS]
+    D --> E[GitHub Release]
+    E --> F[install.sh / install.ps1]
+    E --> G[npm install -g venix]
+    E --> H[Homebrew · Scoop · Winget · Termux]
+    F --> I((venix))
+    G --> I
 ```
 
-## Configuração
+A **tag Git é a única fonte da versão**: o Go recebe o número por `-ldflags` e o pacote npm é publicado com o mesmo número. Nada precisa ser editado à mão a cada release.
 
-Variáveis aceitas:
+## 🧩 Linguagens e o que cada uma faz
+
+| Linguagem | Onde fica | Para que serve |
+|---|---|---|
+| **Go** | `cmd/`, `internal/` | O coração do projeto: comandos, menu interativo, login OAuth2 + PKCE, cliente HTTP da API, diagnóstico e build do executável nativo. |
+| **JavaScript (Node.js)** | `npm-package/` | Só o instalador do npm: baixa o binário certo da release, confere o SHA-256 e encaminha os argumentos para o `venix`. |
+| **Shell (sh/bash)** | `install.sh`, `scripts/release/` | Instalador de uma linha e scripts de release (conferência de nomes, checksums, manifestos). |
+| **PowerShell** | `install.ps1` | Instalador de uma linha para Windows. |
+| **Python** | `scripts/release/check_binary.py` | Valida no CI o formato e a arquitetura de cada binário antes de publicar. |
+| **YAML** | `.github/workflows/`, `packaging/` | Pipeline do GitHub Actions e manifestos do Winget. |
+| **HTML + CSS** | `internal/auth/page.go` | Página exibida no navegador depois de confirmar o login. |
+| **JSON** | `.github/release-targets.json`, `package.json` | Lista das plataformas da release e metadados do pacote npm. |
+| **Makefile** | `Makefile` | Atalhos de desenvolvimento (`make fmt`, `make test`, `make build`). |
+| **Ruby (modelo)** | `packaging/homebrew/` | Modelo da fórmula do Homebrew. |
+
+## 🗂️ Estrutura do repositório
 
 ```text
-VENIX_CLIENT_ID
-VENIX_API_BASE_URL
-VENIX_AUTH_URL
-VENIX_OAUTH_TOKEN_URL
-VENIX_CALLBACK_PORT
-VENIX_CONFIG_DIR
-VENIX_DEBUG=1
-NO_COLOR
+venix-cli/
+├── cmd/venix/            # comandos da CLI (main, apps, doctor, login, help)
+├── internal/
+│   ├── api/              # cliente HTTP da VenixCloud
+│   ├── auth/             # OAuth2 + PKCE e página de callback
+│   ├── browser/          # abre o navegador (inclui Termux)
+│   ├── menu/             # menu interativo responsivo e ao vivo
+│   ├── output/           # cores, tabelas, logs e JSON coloridos
+│   └── store/            # credenciais locais
+├── npm-package/          # instalador npm (JavaScript)
+├── packaging/            # modelos Homebrew, Scoop, Winget e Termux
+├── scripts/release/      # validação e geração de artefatos
+├── .github/workflows/    # CI e release automática
+├── install.sh            # instalador Linux, macOS e Termux
+└── install.ps1           # instalador Windows
 ```
 
-As credenciais ficam em `~/.config/venix/credentials.json`, com permissão restrita.
-Nunca envie `.env`, tokens ou chaves para o repositório.
-
-## Desenvolvimento
+## 👩‍💻 Desenvolvimento
 
 Requisitos: Go 1.22 ou superior e Make.
 
 ```bash
-make fmt
-make tidy
-make test
-make build
-./dist/venix --help
+make fmt     # formata o código
+make test    # roda os testes
+make build   # gera dist/venix
+./dist/venix --version
 ```
 
-Build multiplataforma local:
+### Publicar uma release
+
+Basta enviar uma tag de versão:
 
 ```bash
-GOOS=linux GOARCH=amd64 make build
-GOOS=linux GOARCH=arm64 make build
-GOOS=darwin GOARCH=amd64 make build
-GOOS=darwin GOARCH=arm64 make build
-GOOS=windows GOARCH=amd64 make build
-GOOS=windows GOARCH=arm64 make build
+git tag v1.0.13
+git push origin v1.0.13
 ```
 
-## Releases
+O GitHub Actions testa, compila as 7 plataformas, valida cada binário, gera o `SHA256SUMS`, publica a release e, por fim, o pacote npm (Trusted Publishing ou o secret `NPM_TOKEN`). Detalhes em [`GITHUB-AUTOMATICO.md`](GITHUB-AUTOMATICO.md).
 
-A release é criada automaticamente quando uma tag `v*` é enviada:
+## 🔒 Segurança
 
-```bash
-git add .
-git commit -m "ci: configure automatic cross-platform releases"
-git push origin main
-git tag v1.0.5
-git push origin v1.0.5
-```
+- Login com OAuth2 + PKCE; nenhum segredo fica no código.
+- Instaladores (`install.sh`, `install.ps1` e npm) conferem o SHA-256 antes de instalar e executam `--version` para validar o binário.
+- Nunca envie tokens, chaves ou credenciais para o repositório.
 
-O GitHub Actions executa testes, GoReleaser e publica os 12 arquivos binários, além de `checksums.txt`.
+---
+
+<div align="center">
+<sub>Feito com Go · <a href="https://venixcloud.com">venixcloud.com</a></sub>
+</div>

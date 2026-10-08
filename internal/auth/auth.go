@@ -144,10 +144,11 @@ func Login(noBrowser bool, clientID string) (Credentials, error) {
 	output.Link("", u.String())
 	var spin *output.Spinner
 	if !noBrowser {
-		if browser.Open(u.String()) {
+		if ok, detail := browser.OpenDetailed(u.String()); ok {
 			output.Muted("Navegador aberto. Conclua a autorização e volte aqui.")
 		} else {
 			output.Warning("Não consegui abrir o navegador automaticamente. Abra o link acima manualmente.")
+			output.Muted("detalhes: " + detail)
 		}
 		spin = output.StartSpinner("Aguardando autorização no navegador")
 	} else {

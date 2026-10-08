@@ -49,15 +49,28 @@ func appsCmd() *cobra.Command {
 			printApps(apps)
 			return nil
 		}
-		items := make([]menu.Item, len(apps))
-		for i, app := range apps {
-			items[i] = appItem(app)
+		feed := &appsFeed{client: c, statusOK: true}
+		for {
+			items, e := feed.load()
+			if e != nil {
+				return e
+			}
+			if len(items) == 0 {
+				output.Warning("Nenhuma aplicação encontrada.")
+				return nil
+			}
+			item, ok, e := menu.SelectLive("APLICAÇÕES • ao vivo", []string{"NOME", "STATUS", "USO"}, items, 5*time.Second, feed.load)
+			if e != nil || !ok {
+				return e
+			}
+			app := feed.app(item.ID)
+			if app == nil {
+				continue
+			}
+			if e = appActions(c, app); e != nil {
+				return e
+			}
 		}
-		selected, e := menu.SelectItems("APLICAÇÕES", []string{"NOME", "STATUS", "MEMÓRIA"}, items)
-		if e != nil || selected < 0 {
-			return e
-		}
-		return appActions(c, apps[selected])
 	}}
 	c.Flags().BoolVar(&jsonOutput, "json", false, "imprime JSON para automação")
 	return c
@@ -86,11 +99,11 @@ func appValue(app map[string]any, keys ...string) string {
 
 func appItem(app map[string]any) menu.Item {
 	label, tone := appStatus(appValue(app, "status", "state"))
-	detail := appValue(app, "max_ram", "ram", "memory")
-	if detail != "-" {
-		detail += " MB"
+	id := appValue(app, "id")
+	if id == "-" {
+		id = ""
 	}
-	return menu.Item{Title: appValue(app, "name", "appName"), Status: label, Detail: detail, Tone: tone}
+	return menu.Item{Title: appValue(app, "name", "appName"), Status: label, Detail: appUsage(app), ID: id, Tone: tone}
 }
 
 func appStatus(raw string) (string, menu.Tone) {
@@ -118,14 +131,11 @@ func appURL(app map[string]any) string {
 
 func printApps(apps []map[string]any) {
 	output.Heading("APLICAÇÕES")
-	output.Muted(fmt.Sprintf("%-24s  %-10s  %s", "NOME", "STATUS", "MEMÓRIA"))
+	output.Muted(fmt.Sprintf("%-24s  %-10s  %s", "NOME", "STATUS", "USO"))
 	for _, app := range apps {
 		label, _ := appStatus(appValue(app, "status", "state"))
 		pad := strings.Repeat(" ", max(0, 10-len([]rune(label))))
-		memory := appValue(app, "max_ram", "ram", "memory")
-		if memory != "-" {
-			memory += " MB"
-		}
+		memory := appUsage(app)
 		fmt.Printf("%-24s  %s%s  %s\n", appValue(app, "name", "appName"), output.Status(label), pad, memory)
 		if url := appURL(app); url != "-" {
 			output.Link("  ↳", url)
@@ -136,9 +146,19 @@ func printApps(apps []map[string]any) {
 func appActions(c *api.Client, app map[string]any) error {
 	id := appValue(app, "id")
 	name := appValue(app, "name", "appName")
-	items := []string{"Ver detalhes", "Ver logs", "Reiniciar", "Iniciar", "Parar", "Criar backup", "Fazer deploy", "Excluir", "Voltar"}
+	items := []menu.Item{
+		{Title: "Ver detalhes", Tone: menu.ToneInfo},
+		{Title: "Ver logs", Tone: menu.ToneInfo},
+		{Title: "Reiniciar", Tone: menu.ToneWarn},
+		{Title: "Iniciar", Tone: menu.ToneGood},
+		{Title: "Parar", Tone: menu.ToneBad},
+		{Title: "Criar backup", Tone: menu.ToneInfo},
+		{Title: "Fazer deploy", Tone: menu.ToneGood},
+		{Title: "Excluir", Tone: menu.ToneBad},
+		{Title: "Voltar", Tone: menu.ToneMuted},
+	}
 	for {
-		selected, e := menu.Select("AÇÕES • "+name, items)
+		selected, e := menu.SelectItems("AÇÕES • "+name, nil, items)
 		if e != nil || selected < 0 || selected == len(items)-1 {
 			return e
 		}

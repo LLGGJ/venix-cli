@@ -14,6 +14,7 @@ const (
 	ToneWarn
 	ToneBad
 	ToneMuted
+	ToneInfo
 )
 
 // Item é uma linha do menu. Status e Detail são opcionais.
@@ -21,6 +22,7 @@ type Item struct {
 	Title  string
 	Status string
 	Detail string
+	ID     string
 	Tone   Tone
 }
 
@@ -36,6 +38,12 @@ const (
 	stWarn
 	stBad
 	stMuted
+	stInfo
+	stSelGood
+	stSelWarn
+	stSelBad
+	stSelMuted
+	stSelInfo
 )
 
 type seg struct {
@@ -173,15 +181,44 @@ func toneStyle(t Tone) style {
 		return stBad
 	case ToneMuted:
 		return stMuted
+	case ToneInfo:
+		return stInfo
 	}
 	return stPlain
 }
 
-func markerFor(selected bool) (string, style, style) {
-	if selected {
-		return "❯ ", stMarker, stSelected
+// titleStyleFor define a cor do título: itens sem status/detalhe usam a cor do
+// próprio tom (ex.: ações); itens com status só ganham cor quando selecionados.
+func titleStyleFor(it Item, selected bool) style {
+	plainItem := it.Status == "" && it.Detail == ""
+	if !selected {
+		if plainItem {
+			return toneStyle(it.Tone)
+		}
+		return stPlain
 	}
-	return "  ", stPlain, stPlain
+	if plainItem {
+		switch it.Tone {
+		case ToneGood:
+			return stSelGood
+		case ToneWarn:
+			return stSelWarn
+		case ToneBad:
+			return stSelBad
+		case ToneMuted:
+			return stSelMuted
+		case ToneInfo:
+			return stSelInfo
+		}
+	}
+	return stSelected
+}
+
+func markerFor(selected bool) (string, style) {
+	if selected {
+		return "❯ ", stMarker
+	}
+	return "  ", stPlain
 }
 
 // buildFrame calcula todas as linhas da tela. Nenhuma linha devolvida é mais
@@ -197,8 +234,13 @@ func buildFrame(title string, headers []string, items []Item, selected, top, wid
 	if usable >= 20 {
 		prefix = "◆ "
 	}
+	heading := ellipsize(prefix+title, usable)
+	headingLine := line{{text: heading, st: stHeading}}
+	if i := strings.Index(heading, " • "); i >= 0 {
+		headingLine = line{{text: heading[:i], st: stHeading}, {text: " • ", st: stDim}, {text: heading[i+len(" • "):], st: stSelected}}
+	}
 	fixed := []line{
-		{{text: ellipsize(prefix+title, usable), st: stHeading}},
+		headingLine,
 		{{text: pickHint(usable), st: stDim}},
 		{},
 	}
@@ -255,7 +297,8 @@ func buildFrame(title string, headers []string, items []Item, selected, top, wid
 
 	blocks := make([][]line, len(items))
 	for i, it := range items {
-		marker, markerStyle, titleStyle := markerFor(i == selected)
+		marker, markerStyle := markerFor(i == selected)
+		titleStyle := titleStyleFor(it, i == selected)
 		var block []line
 		switch {
 		case table:
@@ -356,8 +399,8 @@ func styleCode(s style) string {
 		return "\033[94m"
 	case stMarker:
 		return "\033[36m"
-	case stSelected:
-		return "\033[1;97m"
+	case stSelected, stSelInfo:
+		return "\033[1;96m"
 	case stGood:
 		return "\033[32m"
 	case stWarn:
@@ -366,6 +409,16 @@ func styleCode(s style) string {
 		return "\033[31m"
 	case stMuted:
 		return "\033[90m"
+	case stInfo:
+		return "\033[36m"
+	case stSelGood:
+		return "\033[1;92m"
+	case stSelWarn:
+		return "\033[1;93m"
+	case stSelBad:
+		return "\033[1;91m"
+	case stSelMuted:
+		return "\033[1;37m"
 	}
 	return ""
 }

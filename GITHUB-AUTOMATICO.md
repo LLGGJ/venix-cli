@@ -11,3 +11,8 @@ O workflow `release.yml` valida versão e nomes, roda `gofmt`/`vet`/`test`, comp
 Artefatos: `venix_<versão>_<os>_<arch>.tar.gz` (`.zip` no Windows) e `SHA256SUMS`. Dentro de cada archive o executável se chama `venix` (`venix.exe`).
 
 Android/Termux é compilado com cgo e o Android NDK (binário dinâmico Bionic), como o `go build` feito no próprio Termux. No npm, configure um Trusted Publisher para `LLGGJ/venix-cli`, workflow `release.yml`.
+
+## Extras gerados a cada release
+
+- `packaging_<versão>.tar.gz`: manifestos prontos de Homebrew, Scoop, Winget e Termux (`scripts/release/gen-packaging.sh`). A licença sai como `CONFIRMAR-LICENCA` até você definir a variável de repositório `LICENSE_SPDX` (Settings → Variables).
+- `install.sh` e `install.ps1` ficam na raiz e são usados direto da branch `main`; não fazem parte dos archives.

@@ -2,7 +2,6 @@
   "name": "venix",
   "description": "Instalador da Venix CLI nativa em Go para Linux, macOS, Windows e Termux",
   "type": "module",
-  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/LLGGJ/venix-cli.git",

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="Venix CLI">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#05060f"/>
+      <stop offset="1" stop-color="#0d1233"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#5b7cff"/>
+      <stop offset="0.5" stop-color="#35e0e6"/>
+      <stop offset="1" stop-color="#b57bff"/>
+      <animate attributeName="x1" values="-1;0;-1" dur="6s" repeatCount="indefinite"/>
+      <animate attributeName="x2" values="0;1;0" dur="6s" repeatCount="indefinite"/>
+    </linearGradient>
+    <radialGradient id="glowA"><stop offset="0" stop-color="#5b7cff" stop-opacity=".55"/><stop offset="1" stop-color="#5b7cff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glowB"><stop offset="0" stop-color="#35e0e6" stop-opacity=".40"/><stop offset="1" stop-color="#35e0e6" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="300" rx="20" fill="url(#bg)"/>
+  <circle cx="200" cy="40" r="220" fill="url(#glowA)">
+    <animate attributeName="cx" values="200;320;200" dur="9s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="1040" cy="270" r="240" fill="url(#glowB)">
+    <animate attributeName="cy" values="270;200;270" dur="11s" repeatCount="indefinite"/>
+  </circle>
+  <g fill="none" stroke="#5b7cff" stroke-opacity=".35" stroke-width="2">
+    <rect x="90" y="70" width="26" height="26" transform="rotate(45 103 83)">
+      <animateTransform attributeName="transform" type="rotate" from="45 103 83" to="405 103 83" dur="20s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="1070" y="60" width="18" height="18" transform="rotate(45 1079 69)">
+      <animateTransform attributeName="transform" type="rotate" from="45 1079 69" to="-315 1079 69" dur="16s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+  <text x="600" y="150" text-anchor="middle" font-family="Segoe UI, system-ui, -apple-system, Roboto, sans-serif" font-size="84" font-weight="800" letter-spacing="6" fill="url(#title)">◆ VENIX CLI</text>
+  <text x="600" y="203" text-anchor="middle" font-family="Segoe UI, system-ui, -apple-system, Roboto, sans-serif" font-size="25" fill="#9aa3c7">A linha de comando nativa da VenixCloud</text>
+  <rect x="520" y="226" width="160" height="4" rx="2" fill="#35e0e6">
+    <animate attributeName="width" values="40;160;40" dur="3.5s" repeatCount="indefinite"/>
+    <animate attributeName="x" values="580;520;580" dur="3.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values=".4;1;.4" dur="3.5s" repeatCount="indefinite"/>
+  </rect>
+  <text x="600" y="268" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="17" fill="#6f7aa8">Go · Linux · macOS · Windows · Android/Termux</text>
+</svg>
