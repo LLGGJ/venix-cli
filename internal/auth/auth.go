@@ -45,8 +45,12 @@ func configFile() string {
 	}
 	return filepath.Join(d, "venix", "credentials.json")
 }
+
 func randomBytes(n int) ([]byte, error) { b := make([]byte, n); _, e := rand.Read(b); return b, e }
 func b64(b []byte) string               { return base64.RawURLEncoding.EncodeToString(b) }
+
+// Dir devolve o diretório onde as credenciais são guardadas.
+func Dir() string { return dir() }
 
 func Login(noBrowser bool, clientID string) (Credentials, error) {
 	if clientID == "" {
@@ -218,6 +222,7 @@ func exchange(clientID, code, redirect, verifier string) (Credentials, error) {
 	}
 	return Credentials{ClientID: clientID, AccessToken: token.AccessToken, RefreshToken: token.RefreshToken, ExpiresAt: time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)}, nil
 }
+
 func save(c Credentials) error {
 	p := configFile()
 	if e := os.MkdirAll(filepath.Dir(p), 0700); e != nil {
