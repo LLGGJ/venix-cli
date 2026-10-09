@@ -1,0 +1,239 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validar versão e alvos
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      matrix: ${{ steps.meta.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: meta
+        run: |
+          set -euo pipefail
+          TAG="$GITHUB_REF_NAME"
+          if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)$ ]]; then
+            echo "::error::Tag inválida: $TAG (use vMAJOR.MINOR.PATCH)"; exit 1
+          fi
+          VERSION="${BASH_REMATCH[1]}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$([[ "$VERSION" == *-* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "matrix=$(node -p "JSON.stringify(require('./.github/release-targets.json'))")" >> "$GITHUB_OUTPUT"
+      - name: install.js procura os mesmos nomes que o workflow publica
+        run: bash scripts/release/check-names.sh "${{ steps.meta.outputs.version }}"
+
+  test:
+    name: Testes Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: test -z "$(gofmt -l cmd internal)" || { gofmt -d cmd internal; exit 1; }
+      - run: go vet ./...
+      - run: go test ./...
+
+  npm-check:
+    name: Validar pacote npm
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: bash scripts/release/check-npm.sh "${{ needs.prepare.outputs.version }}"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: [prepare, test]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      CGO_ENABLED: ${{ matrix.cgo }}
+      BIN: ${{ matrix.bin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Android/Termux: o binário precisa ser dinâmico (Bionic, /system/bin/linker64),
+      # igual ao que `go build` produz dentro do próprio Termux. Por isso usa cgo + NDK.
+      - name: Localizar compilador do Android NDK
+        if: matrix.goos == 'android'
+        run: |
+          set -euo pipefail
+          NDK="${ANDROID_NDK_LATEST_HOME:-${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}}"
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+          if [ -z "$NDK" ] || [ ! -x "$CC" ]; then echo "::error::Android NDK não encontrado no runner"; exit 1; fi
+          echo "CC=$CC" >> "$GITHUB_ENV"
+
+      - name: Compilar ./cmd/venix
+        run: |
+          set -euo pipefail
+          mkdir -p dist/stage dist/out
+          FLAGS=(-trimpath -ldflags "-s -w -X main.version=${VERSION}")
+          if [ "$GOOS" = android ]; then FLAGS+=(-buildmode=pie); fi
+          go build "${FLAGS[@]}" -o "dist/stage/${BIN}" ./cmd/venix
+
+      - name: Validar formato e arquitetura
+        run: python3 scripts/release/check_binary.py "$GOOS" "$GOARCH" "dist/stage/${BIN}"
+
+      - name: Executar binário (somente alvos que o runner executa)
+        if: matrix.run == true
+        run: |
+          set -euo pipefail
+          B="$PWD/dist/stage/${BIN}"
+          [ "$("$B" --version)" = "$VERSION" ] || { echo "::error::--version diferente de $VERSION"; exit 1; }
+          "$B" help > /dev/null
+          # Regressão do bug da 1.0.4: o executável repetido como primeiro argumento
+          [ "$("$B" "$B" --version)" = "$VERSION" ] || { echo "::error::argumento extra quebrou a CLI"; exit 1; }
+
+      - name: Criar archive
+        env:
+          EXT: ${{ matrix.ext }}
+          NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          ARCHIVE="venix_${VERSION}_${NAME}.${EXT}"
+          if [ "$EXT" = zip ]; then
+            (cd dist/stage && zip -q "../out/${ARCHIVE}" "${BIN}")
+            ENTRIES="$(unzip -Z1 "dist/out/${ARCHIVE}")"
+          else
+            chmod 755 "dist/stage/${BIN}"
+            tar -C dist/stage -czf "dist/out/${ARCHIVE}" "${BIN}"
+            ENTRIES="$(tar -tzf "dist/out/${ARCHIVE}")"
+          fi
+          [ "$ENTRIES" = "$BIN" ] || { echo "::error::archive contém '$ENTRIES', esperado '$BIN'"; exit 1; }
+          [ -s "dist/out/${ARCHIVE}" ] || { echo "::error::archive vazio"; exit 1; }
+          # revalida o binário extraído do archive
+          mkdir -p dist/check
+          if [ "$EXT" = zip ]; then unzip -q "dist/out/${ARCHIVE}" -d dist/check; else tar -xzf "dist/out/${ARCHIVE}" -C dist/check; fi
+          python3 scripts/release/check_binary.py "$GOOS" "$GOARCH" "dist/check/${BIN}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.name }}
+          path: dist/out/*
+          if-no-files-found: error
+
+  release:
+    name: Publicar GitHub Release
+    needs: [prepare, build, npm-check]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: archive-*
+          merge-multiple: true
+          path: dist
+      - name: Conferir archives e gerar SHA256SUMS
+        run: bash scripts/release/finalize.sh "$VERSION" dist
+      - name: Criar release (rascunho) e publicar só com tudo anexado
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          # Releases criadas à mão/pelo site (rascunho ou sem binários) são substituídas;
+          # a tag é mantida. Uma release que já tem arquivos nunca é sobrescrita.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            ASSETS="$(gh release view "$TAG" --json assets -q '.assets | length')"
+            DRAFT="$(gh release view "$TAG" --json isDraft -q .isDraft)"
+            if [ "$DRAFT" = true ] || [ "$ASSETS" = 0 ]; then
+              gh release delete "$TAG" --yes
+            else
+              echo "::error::A release $TAG já tem arquivos publicados. Use uma nova versão."; exit 1
+            fi
+          fi
+          PRE=()
+          if [ "${{ needs.prepare.outputs.prerelease }}" = true ]; then PRE=(--prerelease); fi
+          gh release create "$TAG" dist/* --draft --verify-tag --title "Venix CLI $TAG" --generate-notes "${PRE[@]}"
+          gh release edit "$TAG" --draft=false
+      - name: Gerar manifestos (Homebrew, Scoop, Winget, Termux) e anexar
+        env:
+          LICENSE_SPDX: ${{ vars.LICENSE_SPDX }}
+        run: |
+          set -euo pipefail
+          bash scripts/release/gen-packaging.sh "$VERSION" dist/SHA256SUMS dist-pkg
+          tar -czf "packaging_${VERSION}.tar.gz" -C dist-pkg .
+          gh release upload "v${VERSION}" "packaging_${VERSION}.tar.gz"
+
+  npm:
+    name: Publicar no npm
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - name: npm >= 11.5.1 (Trusted Publishing)
+        run: npm install -g npm@latest
+      # O pacote já foi validado (e bloqueou a release) no job npm-check.
+      # Aqui roda de novo com npm recente apenas para diagnóstico, sem bloquear.
+      - name: Diagnóstico com npm recente (não bloqueia)
+        continue-on-error: true
+        run: bash scripts/release/check-npm.sh "$VERSION"
+      - name: Aplicar versão da tag no package.json
+        working-directory: npm-package
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+      - name: Publicar
+        working-directory: npm-package
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if npm view "venix@${VERSION}" version > /dev/null 2>&1; then
+            echo "venix@${VERSION} já está no npm; nada a publicar."; exit 0
+          fi
+          if [ -n "${NPM_TOKEN:-}" ]; then export NODE_AUTH_TOKEN="$NPM_TOKEN"; fi
+          OPTS=(--access public --provenance)
+          if [ "${{ needs.prepare.outputs.prerelease }}" = true ]; then OPTS+=(--tag next); fi
+          npm publish "${OPTS[@]}"
+      - name: Anexar .tgz à release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          (cd npm-package && npm pack --pack-destination "$RUNNER_TEMP" > /dev/null)
+          gh release upload "v${VERSION}" "$RUNNER_TEMP"/venix-*.tgz --clobber

@@ -1,0 +1,28 @@
+{
+  "name": "venix",
+  "description": "Instalador da Venix CLI nativa em Go para Linux, macOS, Windows e Termux",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LLGGJ/venix-cli.git",
+    "directory": "npm-package"
+  },
+  "homepage": "https://github.com/LLGGJ/venix-cli#readme",
+  "bugs": {
+    "url": "https://github.com/LLGGJ/venix-cli/issues"
+  },
+  "bin": {
+    "venix": "bin/venix.js"
+  },
+  "files": [
+    "bin/venix.js",
+    "install.js",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
