@@ -184,6 +184,10 @@ func readKey(r io.Reader) (string, error) {
 			return "up", nil
 		case 'j', 'J':
 			return "down", nil
+		case 'g':
+			return "home", nil
+		case 'G':
+			return "end", nil
 		}
 		return "", nil
 	}
@@ -193,6 +197,22 @@ func readKey(r io.Reader) (string, error) {
 			return "up", nil
 		case 'B':
 			return "down", nil
+		case 'H':
+			return "home", nil
+		case 'F':
+			return "end", nil
+		}
+		if n >= 4 && b[3] == '~' {
+			switch b[2] {
+			case '5':
+				return "pgup", nil
+			case '6':
+				return "pgdn", nil
+			case '1', '7':
+				return "home", nil
+			case '4', '8':
+				return "end", nil
+			}
 		}
 	}
 	return "", nil

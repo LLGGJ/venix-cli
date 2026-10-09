@@ -158,8 +158,8 @@ const (
 
 func confirmDelete(name string) (bool, error) {
 	items := []menu.Item{
-		{Title: "🔙 Cancelar", Tone: menu.ToneMuted},
-		{Title: "❌ Sim, excluir (irreversível)", Tone: menu.ToneBad},
+		{Title: "[🔙] Cancelar", Tone: menu.ToneMuted},
+		{Title: "[❌] Sim, excluir (irreversível)", Tone: menu.ToneBad},
 	}
 	selected, err := menu.SelectItems("EXCLUIR • "+name, nil, items)
 	return selected == 1, err
@@ -169,16 +169,16 @@ func appActions(c *api.Client, app map[string]any) error {
 	id := appValue(app, "id")
 	name := appValue(app, "name", "appName")
 	items := []menu.Item{
-		{Title: "🌐 Visualizar pela web", Tone: menu.ToneGood},
-		{Title: "🔎 Detalhes", Tone: menu.ToneInfo},
-		{Title: "📜 Ver logs", Tone: menu.ToneInfo},
-		{Title: "🔄 Reiniciar", Tone: menu.ToneWarn},
-		{Title: "⚡ Iniciar", Tone: menu.ToneGood},
-		{Title: "🛑 Parar", Tone: menu.ToneBad},
-		{Title: "💾 Criar backup", Tone: menu.ToneInfo},
-		{Title: "🚀 Fazer deploy", Tone: menu.ToneGood},
-		{Title: "❌ Excluir", Tone: menu.ToneBad},
-		{Title: "🔙 Voltar", Tone: menu.ToneMuted},
+		{Title: "[🌐] Visualizar pela web", Tone: menu.ToneGood},
+		{Title: "[🔎] Detalhes", Tone: menu.ToneInfo},
+		{Title: "[📜] Ver logs", Tone: menu.ToneInfo},
+		{Title: "[🔄] Reiniciar", Tone: menu.ToneWarn},
+		{Title: "[⚡] Iniciar", Tone: menu.ToneGood},
+		{Title: "[🛑] Parar", Tone: menu.ToneBad},
+		{Title: "[💾] Criar backup", Tone: menu.ToneInfo},
+		{Title: "[🚀] Fazer deploy", Tone: menu.ToneGood},
+		{Title: "[❌] Excluir", Tone: menu.ToneBad},
+		{Title: "[🔙] Voltar", Tone: menu.ToneMuted},
 	}
 	for {
 		selected, e := menu.SelectItems("AÇÕES • "+name, nil, items)
@@ -202,9 +202,24 @@ func appActions(c *api.Client, app map[string]any) error {
 		case actDetails:
 			printAppDetails(app)
 		case actLogs:
-			output.Heading("LOGS • " + name)
-			output.Muted("Carregando logs recentes...")
-			e = c.StreamLogs(id, false, output.Log)
+			spin := output.StartSpinner("Carregando logs recentes")
+			var rows []string
+			e = c.StreamLogs(id, false, func(l string) {
+				if formatted := output.FormatLog(logText(l)); formatted != "" {
+					rows = append(rows, formatted)
+				}
+			})
+			spin.Stop()
+			if e != nil {
+				return e
+			}
+			if len(rows) == 0 {
+				rows = []string{"Nenhum log recente."}
+			}
+			if e = menu.Viewer("LOGS • "+name, rows); e != nil {
+				return e
+			}
+			continue
 		case actRestart, actStart, actStop:
 			verbs := map[int][2]string{actRestart: {"RESTART", "Reiniciado"}, actStart: {"START", "Iniciado"}, actStop: {"STOP", "Parado"}}
 			if _, e = c.AppAction(id, verbs[selected][0]); e == nil {
@@ -461,7 +476,7 @@ func logsCmd() *cobra.Command {
 		} else {
 			output.Info("Acompanhando logs ao vivo; use Ctrl+C para sair")
 		}
-		return c.StreamLogs(fmt.Sprint(a["id"]), follow, output.Log)
+		return c.StreamLogs(fmt.Sprint(a["id"]), follow, func(l string) { output.Log(logText(l)) })
 	}}
 	c.Flags().BoolVarP(&follow, "follow", "f", false, "acompanha os logs ao vivo")
 	return c

@@ -43,6 +43,7 @@ const (
 	stSelBad
 	stSelMuted
 	stSelInfo
+	stButton
 )
 
 type seg struct {
@@ -246,13 +247,8 @@ func buildFrame(title string, headers []string, items []Item, selected, top, wid
 	if usable >= 20 {
 		prefix = "◆ "
 	}
-	heading := ellipsize(prefix+title, usable)
-	headingLine := line{{text: heading, st: stHeading}}
-	if i := strings.Index(heading, " • "); i >= 0 {
-		headingLine = line{{text: heading[:i], st: stHeading}, {text: " • ", st: stDim}, {text: heading[i+len(" • "):], st: stSelected}}
-	}
 	fixed := []line{
-		headingLine,
+		makeHeading(prefix+title, usable),
 		{{text: pickHint(usable), st: stDim}},
 		{},
 	}
@@ -388,12 +384,27 @@ func buildFrame(title string, headers []string, items []Item, selected, top, wid
 	return out, top
 }
 
+func makeHeading(title string, usable int) line {
+	heading := ellipsize(title, usable)
+	if i := strings.Index(heading, " • "); i >= 0 {
+		return line{{text: heading[:i], st: stHeading}, {text: " • ", st: stDim}, {text: heading[i+len(" • "):], st: stSelected}}
+	}
+	return line{{text: heading, st: stHeading}}
+}
+
 func blockHeight(blocks [][]line, from, to int) int {
 	n := 0
 	for i := from; i <= to && i < len(blocks); i++ {
 		n += len(blocks[i])
 	}
 	return n
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func maxInt(a, b int) int {
@@ -423,6 +434,8 @@ func styleCode(s style) string {
 		return "\033[90m"
 	case stInfo:
 		return "\033[36m"
+	case stButton:
+		return "\033[1;30;46m"
 	case stSelGood:
 		return "\033[1;92m"
 	case stSelWarn:

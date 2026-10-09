@@ -59,35 +59,88 @@ func Flags(usage string) {
 	}
 }
 
-func containsAny(s string, words ...string) bool {
-	for _, w := range words {
-		if strings.Contains(s, w) {
-			return true
-		}
+var (
+	ansiRe     = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
+	errorRe    = regexp.MustCompile(`(?i)\b(error|erro|fatal|panic|exception|failed|traceback)\b`)
+	debugRe    = regexp.MustCompile(`(?i)\b(debug|trace)\b`)
+	logTokenRe = regexp.MustCompile(`(?i)(https?://\S+)|("(?:[^"\\]|\\.)*")(\s*:)?|\b(ERROR|ERRO|FATAL|PANIC|WARN|WARNING|AVISO|INFO|DEBUG|TRACE)\b|([A-Za-z_][\w.-]*)=|\b\d+(?:\.\d+)?(?:ms|s|MB|KB|GB)?\b|\b\d+(?:\.\d+)?%`)
+)
+
+func levelColor(token string) string {
+	switch strings.ToUpper(token) {
+	case "ERROR", "ERRO", "FATAL", "PANIC":
+		return bold + red
+	case "WARN", "WARNING", "AVISO":
+		return yellow
+	case "INFO":
+		return cyan
 	}
-	return false
+	return gray
 }
 
-// Log imprime uma linha de log com timestamp em cinza e cor por severidade.
-func Log(line string) {
+// colorTokens destaca URLs, textos entre aspas, chaves, níveis e números de um log.
+func colorTokens(s string) string {
+	var b strings.Builder
+	last := 0
+	for _, m := range logTokenRe.FindAllStringSubmatchIndex(s, -1) {
+		b.WriteString(s[last:m[0]])
+		token := s[m[0]:m[1]]
+		switch {
+		case m[2] >= 0:
+			b.WriteString(paint(blue, token))
+		case m[4] >= 0 && m[6] >= 0:
+			b.WriteString(paint(cyan, s[m[4]:m[5]]) + s[m[6]:m[7]])
+		case m[4] >= 0:
+			b.WriteString(paint(green, token))
+		case m[8] >= 0:
+			b.WriteString(paint(levelColor(token), token))
+		case m[10] >= 0:
+			b.WriteString(paint(cyan, s[m[10]:m[11]]) + paint(gray, "="))
+		default:
+			b.WriteString(paint(yellow, token))
+		}
+		last = m[1]
+	}
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// FormatLog devolve uma linha de log colorida: timestamp em cinza, erros em
+// vermelho, debug em cinza e, nas demais, URLs, textos, chaves e números
+// destacados. Códigos de cor e caracteres de controle da origem são removidos.
+func FormatLog(line string) string {
+	line = ansiRe.ReplaceAllString(line, "")
+	line = strings.Map(func(r rune) rune {
+		switch {
+		case r == '\t':
+			return ' '
+		case r < 0x20 || r == 0x7f:
+			return -1
+		}
+		return r
+	}, line)
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return ""
+	}
 	prefix, rest := "", line
 	if m := logPrefix.FindStringSubmatch(line); m != nil {
 		prefix, rest = paint(gray, m[1])+" ", m[2]
 	}
-	lower := strings.ToLower(rest)
-	code := ""
 	switch {
-	case containsAny(lower, "error", "erro", "fatal", "panic", "exception", "failed"):
-		code = red
-	case containsAny(lower, "warn", "aviso"):
-		code = yellow
-	case containsAny(lower, "debug", "trace"):
-		code = gray
+	case errorRe.MatchString(rest):
+		return prefix + paint(red, rest)
+	case debugRe.MatchString(rest):
+		return prefix + paint(gray, rest)
 	}
-	if code != "" {
-		rest = paint(code, rest)
+	return prefix + colorTokens(rest)
+}
+
+// Log imprime uma linha de log formatada por FormatLog.
+func Log(line string) {
+	if out := FormatLog(line); out != "" {
+		fmt.Fprintln(os.Stdout, out)
 	}
-	fmt.Fprintln(os.Stdout, prefix+rest)
 }
 
 func colorJSONValue(v string) string {

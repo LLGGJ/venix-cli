@@ -18,6 +18,10 @@ func TestReadKey(t *testing.T) {
 		{name: "sair", data: "q", want: "q"},
 		{name: "seta modo aplicação", data: "\x1bOA", want: "up"},
 		{name: "j desce", data: "j", want: "down"},
+		{name: "page up", data: "\x1b[5~", want: "pgup"},
+		{name: "page down", data: "\x1b[6~", want: "pgdn"},
+		{name: "home", data: "\x1b[H", want: "home"},
+		{name: "end", data: "\x1b[4~", want: "end"},
 		{name: "k sobe", data: "k", want: "up"},
 	}
 	for _, tt := range tests {

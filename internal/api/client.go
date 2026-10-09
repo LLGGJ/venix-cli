@@ -3,7 +3,9 @@ package api
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -131,7 +133,13 @@ func (c *Client) Ram(id string, mb int) (map[string]any, error) {
 func (c *Client) Remove(id string) (map[string]any, error) { return c.Delete("/apps/" + id) }
 
 func (c *Client) StreamLogs(id string, follow bool, onLine func(string)) error {
-	req, e := http.NewRequest("GET", c.Base+"/instances/stream/"+id, nil)
+	ctx := context.Background()
+	if !follow {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 8*time.Second)
+		defer cancel()
+	}
+	req, e := http.NewRequestWithContext(ctx, "GET", c.Base+"/instances/stream/"+id, nil)
 	if e != nil {
 		return e
 	}
@@ -142,6 +150,9 @@ func (c *Client) StreamLogs(id string, follow bool, onLine func(string)) error {
 	}
 	res, e := c.HTTP.Do(req)
 	if e != nil {
+		if !follow && errors.Is(e, context.DeadlineExceeded) {
+			return nil
+		}
 		return e
 	}
 	defer res.Body.Close()
@@ -149,11 +160,15 @@ func (c *Client) StreamLogs(id string, follow bool, onLine func(string)) error {
 		return fmt.Errorf("HTTP_%d", res.StatusCode)
 	}
 	s := bufio.NewScanner(res.Body)
+	s.Buffer(make([]byte, 0, 64*1024), 1<<20)
 	for s.Scan() {
 		line := s.Text()
 		if strings.HasPrefix(line, "data:") {
 			onLine(strings.TrimSpace(strings.TrimPrefix(line, "data:")))
 		}
 	}
-	return s.Err()
+	if err := s.Err(); err != nil && !(!follow && errors.Is(err, context.DeadlineExceeded)) {
+		return err
+	}
+	return nil
 }
