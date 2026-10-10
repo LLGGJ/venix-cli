@@ -43,7 +43,7 @@
 curl -fsSL https://raw.githubusercontent.com/LLGGJ/venix-cli/main/install.sh | sh
 ```
 
-Detecta o sistema (🐧 Linux, 🍎 macOS ou 🤖 Termux), baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.22 sh install.sh`.
+Detecta o sistema (🐧 Linux, 🍎 macOS ou 🤖 Termux), baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.23 sh install.sh`.
 
 </details>
 
@@ -213,8 +213,8 @@ make build   # gera dist/venix
 Basta enviar uma tag de versão:
 
 ```bash
-git tag v1.0.22
-git push origin v1.0.22
+git tag v1.0.23
+git push origin v1.0.23
 ```
 
 O GitHub Actions testa, compila as 7 plataformas, valida cada binário, gera o `SHA256SUMS`, publica a release e, por fim, o pacote npm (Trusted Publishing ou o secret `NPM_TOKEN`). Configuração única no GitHub: um **Trusted Publisher** no npm (workflow `release.yml`) ou o secret `NPM_TOKEN`, e, se quiser, a variável `LICENSE_SPDX` (Settings → Variables) para os manifestos do Homebrew, Scoop, Winget e Termux gerados a cada release em `packaging_<versão>.tar.gz`.
