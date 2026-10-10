@@ -29,21 +29,17 @@ func New(token string) *Client {
 	}
 	return &Client{strings.TrimRight(b, "/"), token, &http.Client{Timeout: 60 * time.Second}}
 }
-// apiMessage extrai a mensagem de erro de uma resposta JSON da API (ou devolve o texto cru, cortado).
+// apiMessage extrai o código e a mensagem de erro de uma resposta JSON da API
+// (ou devolve o texto cru, cortado).
 func apiMessage(raw []byte) string {
 	var m map[string]any
 	if json.Unmarshal(raw, &m) == nil {
-		for _, key := range []string{"message", "error", "detail", "msg"} {
-			switch v := m[key].(type) {
-			case string:
-				if v != "" {
-					return v
-				}
-			case map[string]any:
-				if text, ok := v["message"].(string); ok && text != "" {
-					return text
-				}
+		code, _ := m["code"].(string)
+		if message := apiMessageField(m); message != "" {
+			if code != "" {
+				return code + ": " + message
 			}
+			return message
 		}
 	}
 	text := strings.TrimSpace(string(raw))
@@ -51,6 +47,22 @@ func apiMessage(raw []byte) string {
 		text = string(r[:300]) + "…"
 	}
 	return text
+}
+
+func apiMessageField(m map[string]any) string {
+	for _, key := range []string{"message", "error", "detail", "msg"} {
+		switch v := m[key].(type) {
+		case string:
+			if v != "" {
+				return v
+			}
+		case map[string]any:
+			if text, ok := v["message"].(string); ok && text != "" {
+				return text
+			}
+		}
+	}
+	return ""
 }
 
 func (c *Client) do(method, path string, body []byte, content string) (map[string]any, error) {
@@ -145,8 +157,34 @@ func (c *Client) CreateAppMultipart(name, runtime string, ram int, web bool, sub
 func (c *Client) Extract(id, path string) (map[string]any, error) {
 	return c.JSON("POST", "/apps/"+id+"/files/extract", map[string]string{"filePath": path})
 }
+// Snapshot cria um backup da aplicação. A rota /snapshots não existe na API da
+// VenixCloud, então tentamos as rotas prováveis e usamos a primeira que a API
+// reconhece (qualquer erro diferente de "rota inexistente" é devolvido como está).
 func (c *Client) Snapshot(id, name string) (map[string]any, error) {
-	return c.JSON("POST", "/snapshots", map[string]string{"resourceId": id, "name": name})
+	byApp := map[string]string{"name": name}
+	byResource := map[string]string{"resourceId": id, "name": name}
+	routes := []struct {
+		path string
+		body map[string]string
+	}{
+		{"/apps/" + id + "/snapshots", byApp},
+		{"/apps/" + id + "/snapshot", byApp},
+		{"/apps/" + id + "/backups", byApp},
+		{"/apps/" + id + "/backup", byApp},
+		{"/apps/" + id + "/snapshots/create", byApp},
+		{"/snapshots/create", byResource},
+		{"/backups", byResource},
+	}
+	for _, r := range routes {
+		out, err := c.JSON("POST", r.path, r.body)
+		if err == nil {
+			return out, nil
+		}
+		if !strings.Contains(err.Error(), "ROUTE_NOT_FOUND") {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("ROUTE_NOT_FOUND: a API da VenixCloud não tem rota de backup (testei %d rotas)", len(routes))
 }
 func (c *Client) Deploy(id string) (map[string]any, error) {
 	return c.JSON("POST", "/apps/"+id+"/deploy/trigger", nil)

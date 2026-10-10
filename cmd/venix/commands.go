@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/LLGGJ/venix-cli/internal/api"
-	"github.com/LLGGJ/venix-cli/internal/browser"
 	"github.com/LLGGJ/venix-cli/internal/menu"
 	"github.com/LLGGJ/venix-cli/internal/output"
 	"github.com/LLGGJ/venix-cli/internal/store"
@@ -147,8 +146,7 @@ func printApps(apps []map[string]any, c *api.Client) {
 }
 
 const (
-	actWeb = iota
-	actDetails
+	actDetails = iota
 	actLogs
 	actRestart
 	actStart
@@ -172,7 +170,6 @@ func appActions(c *api.Client, app map[string]any) error {
 	id := appValue(app, "id")
 	name := appValue(app, "name", "appName")
 	items := []menu.Item{
-		{Title: "[🌐] Visualizar pela web", Tone: menu.ToneGood},
 		{Title: "[🔎] Detalhes", Tone: menu.ToneInfo},
 		{Title: "[📜] Ver logs", Tone: menu.ToneInfo},
 		{Title: "[🔄] Reiniciar", Tone: menu.ToneWarn},
@@ -189,19 +186,6 @@ func appActions(c *api.Client, app map[string]any) error {
 			return e
 		}
 		switch selected {
-		case actWeb:
-			target := webURL(app)
-			if target == "" {
-				output.Warning("A API não informou o endereço web desta aplicação. Rode: venix doctor --dump")
-				break
-			}
-			output.Heading("🌐 " + name)
-			output.Link("Endereço:", target)
-			if ok, detail := browser.OpenDetailed(target); ok {
-				output.Muted("Abrindo no navegador...")
-			} else {
-				output.Warning("Não consegui abrir o navegador: " + detail)
-			}
 		case actDetails:
 			printAppDetails(app)
 		case actLogs:

@@ -74,3 +74,10 @@ func TestReportErrorKinds(t *testing.T) {
 		t.Fatal("isNetworkError classificou errado")
 	}
 }
+
+func TestReportErrorRouteNotFound(t *testing.T) {
+	err := errors.New("HTTP_404: ROUTE_NOT_FOUND: A rota /v1/snapshots nao existe na Venix Cloud API.")
+	if !strings.Contains(err.Error(), "ROUTE_NOT_FOUND") {
+		t.Fatal("o código ROUTE_NOT_FOUND precisa estar na mensagem")
+	}
+}

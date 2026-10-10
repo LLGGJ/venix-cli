@@ -1,0 +1,23 @@
+VENIX CLI v1.0.22  (nota de entrega: NÃO precisa ir para o repositório, pode apagar depois de ler)
+
+COMO APLICAR
+1. Extraia este ZIP por cima da pasta do repositório venix-cli, mantendo as pastas.
+   Não mexa em app/, components/ e lib/ (não fazem parte da CLI).
+2. Se o seu .gitignore tem regras do site, mantenha o seu e só acrescente:
+     npm-package/bin/venix-native*
+     *.tgz
+3. Rode: make fmt && go vet ./... && go test ./...
+4. git add -A && git commit  e depois: git tag v1.0.22 && git push origin v1.0.22
+
+O QUE MUDOU NESTA VERSÃO
+- Criar backup: a rota /v1/snapshots NÃO existe na API da VenixCloud. A CLI agora testa as rotas
+  prováveis (/apps/{id}/snapshots, /snapshot, /backups, /backup...) e usa a primeira que a API
+  reconhece. Se nenhuma existir, mostra "Esta função ainda não está disponível na API".
+  (arquivo: internal/api/client.go)
+- Removida a ação "Visualizar pela web" do menu do app (cmd/venix/commands.go).
+  "Detalhes" continua mostrando o endereço, quando a API informar.
+- Mensagens de erro da API agora trazem o código (ex.: ROUTE_NOT_FOUND).
+  (internal/api/client.go, cmd/venix/errors.go)
+
+ARQUIVOS REMOVIDOS EM VERSÕES ANTERIORES (git rm, se ainda existirem):
+  GITHUB-AUTOMATICO.md  venix.ignore  .env.example  internal/commands/README.md
