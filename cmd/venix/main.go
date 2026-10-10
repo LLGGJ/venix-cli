@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 
-	"github.com/LLGGJ/venix-cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
