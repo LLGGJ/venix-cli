@@ -29,6 +29,7 @@ func New(token string) *Client {
 	}
 	return &Client{strings.TrimRight(b, "/"), token, &http.Client{Timeout: 60 * time.Second}}
 }
+
 // apiMessage extrai o código e a mensagem de erro de uma resposta JSON da API
 // (ou devolve o texto cru, cortado).
 func apiMessage(raw []byte) string {
@@ -157,6 +158,7 @@ func (c *Client) CreateAppMultipart(name, runtime string, ram int, web bool, sub
 func (c *Client) Extract(id, path string) (map[string]any, error) {
 	return c.JSON("POST", "/apps/"+id+"/files/extract", map[string]string{"filePath": path})
 }
+
 // Snapshot cria um backup da aplicação. A rota /snapshots não existe na API da
 // VenixCloud, então tentamos as rotas prováveis e usamos a primeira que a API
 // reconhece (qualquer erro diferente de "rota inexistente" é devolvido como está).
