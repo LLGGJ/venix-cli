@@ -42,8 +42,11 @@ func mergeMetrics(app, m map[string]any) {
 		app["cpu"] = cpu
 	}
 	if mem := nested(m, "memory"); mem != nil {
-		if used, ok := mem["usage"].(float64); ok {
-			app["memory_usage"] = used
+		for _, key := range []string{"usage", "used", "rss"} {
+			if used, ok := mem[key].(float64); ok {
+				app["memory_usage"] = used
+				break
+			}
 		}
 	}
 }
@@ -154,4 +157,118 @@ func streamRow(raw string) (row string, metric bool) {
 		}
 	}
 	return output.FormatLog(logText(raw)), false
+}
+
+func metricsPanel(m map[string]any) []string {
+	var rows []string
+	add := func(label, value string) {
+		rows = append(rows, "  "+output.Colorize("gray", fmt.Sprintf("%-11s", label))+" "+value)
+	}
+	if ts, ok := m["timestamp"].(float64); ok && ts > 0 {
+		if ts > 1e12 {
+			ts /= 1000
+		}
+		add("Amostra", time.Unix(int64(ts), 0).Local().Format("02/01 15:04:05"))
+	}
+	if status := metricsStatus(m); status != "" {
+		label, _ := appStatus(status)
+		add("Status", output.Status(label))
+	}
+	if cpu, ok := m["cpu"].(float64); ok {
+		add("CPU", output.Colorize(percentColor(cpu), fmt.Sprintf("%.1f%%", cpu)))
+	}
+	if mem := nested(m, "memory"); mem != nil {
+		used, _ := mem["usage"].(float64)
+		limit, _ := mem["limit"].(float64)
+		text := fmt.Sprintf("%.0f MB", used/(1<<20))
+		if limit > 0 {
+			text = fmt.Sprintf("%.0f de %.0f MB", used/(1<<20), limit/(1<<20))
+		}
+		percent, ok := mem["percent"].(float64)
+		if !ok && limit > 0 {
+			percent = used / limit * 100
+		}
+		add("Memória", output.Colorize(percentColor(percent), fmt.Sprintf("%s (%.0f%%)", text, percent)))
+	}
+	if net := nested(m, "network"); net != nil {
+		rx, _ := net["rx_bytes"].(float64)
+		tx, _ := net["tx_bytes"].(float64)
+		add("Rede", output.Colorize("cyan", "↓ "+formatBytes(rx)+"   ↑ "+formatBytes(tx)))
+	}
+	if disk, ok := m["disk_used"].(float64); ok {
+		add("Disco", output.Colorize("cyan", formatBytes(disk)))
+	}
+	if process := nested(m, "apm", "process"); process != nil {
+		if up, ok := process["uptime_seconds"].(float64); ok {
+			add("Uptime", output.Colorize("cyan", formatUptime(up)))
+		}
+		if restarts, ok := process["restarts"].(float64); ok {
+			add("Reinícios", output.Colorize("cyan", fmt.Sprintf("%.0f", restarts)))
+		}
+		if runtime, ok := process["runtime"].(string); ok && runtime != "" {
+			add("Runtime", output.Colorize("cyan", runtime[strings.LastIndex(runtime, "/")+1:]))
+		}
+	}
+	if httpStats := nested(m, "apm", "http"); httpStats != nil {
+		latency, _ := httpStats["latency_ms"].(float64)
+		text := fmt.Sprintf("%.0f ms", latency)
+		if p95, ok := httpStats["p95_ms"].(float64); ok {
+			text += fmt.Sprintf(" (p95 %.0f ms)", p95)
+		}
+		if rate, ok := httpStats["req_rate_min"].(float64); ok {
+			text += fmt.Sprintf(" • %.0f req/min", rate)
+		}
+		add("HTTP", output.Colorize("cyan", text))
+	}
+	return rows
+}
+
+// buildStreamRows organiza os eventos do stream da instância em seções:
+// resumo (última amostra de métricas), logs de texto e histórico de amostras.
+func buildStreamRows(events []string) []string {
+	var samples []map[string]any
+	var texts []string
+	for _, raw := range events {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			continue
+		}
+		var statusText string
+		if json.Unmarshal([]byte(trimmed), &statusText) == nil {
+			continue
+		}
+		var m map[string]any
+		if json.Unmarshal([]byte(trimmed), &m) == nil {
+			if _, ok := m["cpu"]; ok {
+				samples = append(samples, m)
+				continue
+			}
+		}
+		if row := output.FormatLog(logText(raw)); row != "" {
+			texts = append(texts, row)
+		}
+	}
+	var rows []string
+	if len(samples) > 0 {
+		rows = append(rows, output.Colorize("bold", "RESUMO DA APLICAÇÃO"), output.Colorize("gray", "───────────────────"))
+		rows = append(rows, metricsPanel(samples[len(samples)-1])...)
+		rows = append(rows, "")
+	}
+	if len(texts) > 0 {
+		rows = append(rows, output.Colorize("bold", "LOGS"), output.Colorize("gray", "────"))
+		rows = append(rows, texts...)
+		rows = append(rows, "")
+	} else if len(samples) > 0 {
+		rows = append(rows, output.Colorize("gray", "A API enviou apenas métricas desta aplicação (sem linhas de log de texto)."), "")
+	}
+	if len(samples) > 1 {
+		rows = append(rows, output.Colorize("bold", "AMOSTRAS"), output.Colorize("gray", "────────"))
+		for _, m := range samples {
+			rows = append(rows, formatMetrics(m))
+		}
+	}
+	if len(rows) == 0 {
+		rows = []string{"Nenhum log recente."}
+	}
+	return rows
 }

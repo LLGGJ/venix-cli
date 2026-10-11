@@ -40,7 +40,11 @@ try {
   $expected = ($line -split '\s+')[0].ToLower()
   $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLower()
   if ($expected -ne $actual) { throw "SHA-256 inválido para $archive" }
-  Write-Host "🪟 Windows detectado ($arch)"
+  Write-Host ""
+  Write-Host "  ╭─ " -NoNewline -ForegroundColor Cyan
+  Write-Host "🪟 Windows detectado" -ForegroundColor White
+  Write-Host "  ╰─ $arch · versão $version" -ForegroundColor Cyan
+  Write-Host ""
 
   $extract = Join-Path $tmp 'x'
   Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force

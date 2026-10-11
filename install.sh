@@ -73,6 +73,20 @@ darwin) SYS_EMOJI="🍎"; SYS_NAME="macOS" ;;
 android) SYS_EMOJI="🤖"; SYS_NAME="Android (Termux)" ;;
 esac
 
+show_system() {
+	if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+		C="$(printf '\033[36m')"
+		B="$(printf '\033[1m')"
+		R="$(printf '\033[0m')"
+	else
+		C=""
+		B=""
+		R=""
+	fi
+	printf '\n  %s╭─%s %s %s%s detectado%s\n' "$C" "$R" "$SYS_EMOJI" "$B" "$SYS_NAME" "$R"
+	printf '  %s╰─%s %s · versão %s\n\n' "$C" "$R" "$ARCH" "$VERSION"
+}
+
 # --- versão ----------------------------------------------------------------
 VERSION="${VENIX_VERSION:-}"
 VERSION="${VERSION#v}"
@@ -113,7 +127,7 @@ WANT="$(awk -v f="$ARCHIVE" '{ n=$2; sub(/^\*/, "", n); if (n == f) { print tolo
 [ -n "$WANT" ] || fail "$ARCHIVE não consta em SHA256SUMS"
 GOT="$(sha256_of "$TMP/$ARCHIVE")"
 [ "$GOT" = "$WANT" ] || fail "SHA-256 inválido para $ARCHIVE"
-say "$SYS_EMOJI $SYS_NAME detectado ($ARCH)"
+show_system
 
 tar -xzf "$TMP/$ARCHIVE" -C "$TMP" || fail "falha ao extrair $ARCHIVE"
 [ -f "$TMP/venix" ] || fail "venix não encontrado dentro de $ARCHIVE"

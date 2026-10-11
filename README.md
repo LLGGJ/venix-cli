@@ -43,7 +43,7 @@
 curl -fsSL https://raw.githubusercontent.com/LLGGJ/venix-cli/main/install.sh | sh
 ```
 
-Detecta o sistema (🐧 Linux, 🍎 macOS ou 🤖 Termux), baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.25 sh install.sh`.
+Detecta o sistema (🐧 Linux, 🍎 macOS ou 🤖 Termux), baixa o binário certo, confere o SHA-256 e instala em `$PREFIX/bin` (Termux), `/usr/local/bin` ou `~/.local/bin`. Para fixar uma versão: `VENIX_VERSION=1.0.26 sh install.sh`.
 
 </details>
 
@@ -113,7 +113,7 @@ venix doctor        # algo estranho? rode o diagnóstico
 
 - O `venix login` abre o navegador sozinho (no Termux usa `termux-open-url`). Em SSH ou sem navegador, use `venix login --no-browser`.
 - As credenciais ficam em `~/.config/venix/credentials.json`, com permissão restrita.
-- `venix` e `venix help` mostram a ajuda e abrem [venixcloud.com/en/tools](https://venixcloud.com/en/tools) em terminais interativos. Defina `VENIX_NO_OPEN=1` para desativar.
+- `venix` e `venix help` mostram a ajuda e abrem [venixcloud.com/en/tools](https://venixcloud.com/en/tools) em terminais interativos. Defina `VENIX_NO_OPEN=1` para desativar. Os comandos interativos limpam a tela ao começar; use `VENIX_NO_CLEAR=1` para manter o histórico do terminal.
 
 ## 🧭 Comandos
 
@@ -126,7 +126,6 @@ venix doctor        # algo estranho? rode o diagnóstico
 | `venix link [app]` | Vincula o diretório a uma aplicação |
 | `venix start` · `stop` · `restart [app]` | Controla a aplicação |
 | `venix logs [app] [-f]` | Mostra ou acompanha os logs |
-| `venix backup [app]` | Cria um snapshot |
 | `venix deploy [app]` | Dispara um deploy |
 | `venix ram [app] <mb>` | Altera a memória |
 | `venix delete [app]` | Exclui uma aplicação |
@@ -139,7 +138,7 @@ O agrupamento `venix app <comando>` também existe. Para scripts, use `--json` (
 - Atualiza **sozinho a cada 5 segundos**, mantendo a seleção.
 - Mostra status colorido (`● ONLINE`, `● OFFLINE`, `● INICIANDO`...) e uso de CPU e memória, quando a API informar.
 - Layout **responsivo**: tabela em telas largas e lista empilhada em telas estreitas, como as do Termux.
-- Navegação: `↑` `↓` ou `j` `k`, `Enter` para escolher e `Esc` para sair. As ações (🔎 detalhes em texto, 📜 logs, 🔄 reiniciar, ⚡ iniciar, 🛑 parar, 💾 backup, 🚀 deploy, ❌ excluir, com confirmação) têm emoji e cor próprios. Os **logs e métricas** abrem em tela própria (se a API enviar só métricas, cada amostra vira uma linha com status, CPU, RAM, rede, disco e uptime): uma linha por registro, coloridos (erros em vermelho, URLs, chaves e números destacados), com rolagem (`↑` `↓`, `PgUp` `PgDn`, `g`/`G`) e um botão **Voltar** fixo no rodapé. As demais ações terminam com o botão **Voltar** (Enter), que retorna ao menu da aplicação.
+- Navegação: `↑` `↓` ou `j` `k`, `Enter` para escolher e `Esc` para sair. As ações (🔎 detalhes em texto, 📜 logs, 🔄 reiniciar, ⚡ iniciar, 🛑 parar, 🚀 deploy, ❌ excluir, com confirmação) têm emoji e cor próprios. Os **logs e métricas** abrem em tela própria (se a API enviar só métricas, cada amostra vira uma linha com status, CPU, RAM, rede, disco e uptime): uma linha por registro, coloridos (erros em vermelho, URLs, chaves e números destacados), com rolagem (`↑` `↓`, `PgUp` `PgDn`, `g`/`G`) e um botão **Voltar** fixo no rodapé. As demais ações terminam com o botão **Voltar** (Enter), que retorna ao menu da aplicação.
 
 ### `venix doctor`
 
@@ -213,8 +212,8 @@ make build   # gera dist/venix
 Basta enviar uma tag de versão:
 
 ```bash
-git tag v1.0.25
-git push origin v1.0.25
+git tag v1.0.26
+git push origin v1.0.26
 ```
 
 O GitHub Actions testa, compila as 7 plataformas, valida cada binário, gera o `SHA256SUMS`, publica a release e, por fim, o pacote npm (Trusted Publishing ou o secret `NPM_TOKEN`). Configuração única no GitHub: um **Trusted Publisher** no npm (workflow `release.yml`) ou o secret `NPM_TOKEN`, e, se quiser, a variável `LICENSE_SPDX` (Settings → Variables) para os manifestos do Homebrew, Scoop, Winget e Termux gerados a cada release em `packaging_<versão>.tar.gz`.

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/LLGGJ/venix-cli/internal/output"
 )
@@ -27,26 +29,64 @@ func webURL(app map[string]any) string {
 	return u.String()
 }
 
-// printAppDetails mostra os dados da aplicação como texto, sem JSON.
+func formatDate(raw string) string {
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t.Local().Format("02/01/2006 15:04")
+	}
+	return raw
+}
+
+func printSection(title string, rows [][2]string) {
+	var shown [][2]string
+	for _, row := range rows {
+		if row[1] != "" && row[1] != "-" {
+			shown = append(shown, row)
+		}
+	}
+	if len(shown) == 0 {
+		return
+	}
+	output.Section(title)
+	for _, row := range shown {
+		output.Field(row[0], row[1], 14)
+	}
+}
+
+// printAppDetails mostra os dados da aplicação como texto, separados em seções.
 func printAppDetails(app map[string]any) {
+	name := appValue(app, "name", "appName")
 	label, _ := appStatus(statusRaw(app))
-	rows := [][2]string{
-		{"Nome", appValue(app, "name", "appName")},
+	output.Heading("🔎 DETALHES • " + name)
+	output.Muted(strings.Repeat("─", 32))
+
+	printSection("APLICAÇÃO", [][2]string{
+		{"Nome", name},
 		{"ID", appValue(app, "id")},
-		{"Status", label},
-		{"Endereço", webURL(app)},
-		{"Domínio", appValue(app, "domain", "custom_domain", "customDomain", "subdomain")},
-		{"Rota", appValue(app, "route", "base_path", "basePath", "web_path")},
-		{"Memória", appUsage(app)},
+		{"Status", output.Status(label)},
+		{"Criado em", formatDate(appValue(app, "created_at", "createdAt", "created"))},
 		{"Runtime", appValue(app, "runtime", "language")},
 		{"Arquivo inicial", appValue(app, "start", "start_file", "startFile", "main")},
-		{"Criado em", appValue(app, "created_at", "createdAt", "created")},
+	})
+	printSection("ENDEREÇO", [][2]string{
+		{"URL", webURL(app)},
+		{"Domínio", appValue(app, "domain", "custom_domain", "customDomain", "subdomain")},
+		{"Rota", appValue(app, "route", "base_path", "basePath", "web_path")},
+	})
+
+	var resources [][2]string
+	if cpu := numberValue(app, cpuKeys...); cpu >= 0 {
+		resources = append(resources, [2]string{"CPU", fmt.Sprintf("%.1f%%", cpu)})
 	}
-	output.Heading("🔎 DETALHES • " + appValue(app, "name", "appName"))
-	for _, row := range rows {
-		if row[1] == "" || row[1] == "-" {
-			continue
+	limit := memoryLimit(app)
+	if used := numberValue(app, memoryUsageKeys...); used >= 0 {
+		text := formatMB(used) + " MB"
+		if limit != "-" {
+			text = formatMB(used) + " de " + limit + " MB"
 		}
-		output.Field(row[0], row[1], 17)
+		resources = append(resources, [2]string{"Memória", text})
+	} else if limit != "-" {
+		resources = append(resources, [2]string{"Limite de RAM", limit + " MB"})
 	}
+	printSection("RECURSOS", resources)
+	fmt.Println()
 }

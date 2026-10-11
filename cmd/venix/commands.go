@@ -51,7 +51,7 @@ func appsCmd() *cobra.Command {
 		feed := &appsFeed{client: c, statusOK: true}
 		for {
 			spin := output.StartSpinner("Carregando aplicações")
-			items, e := feed.load()
+			items, e := feed.load(true)
 			spin.Stop()
 			if e != nil {
 				return e
@@ -60,8 +60,9 @@ func appsCmd() *cobra.Command {
 				output.Warning("Nenhuma aplicação encontrada.")
 				return nil
 			}
-			item, ok, e := menu.SelectLive("APLICAÇÕES • ao vivo", []string{"NOME", "STATUS", "USO"}, items, 5*time.Second, feed.load)
+			item, ok, e := menu.SelectLive("APLICAÇÕES • ao vivo", []string{"NOME", "STATUS", "USO"}, items, 10*time.Second, func() ([]menu.Item, error) { return feed.load(false) })
 			if e != nil || !ok {
+				output.Clear()
 				return e
 			}
 			app := feed.app(item.ID)
@@ -151,7 +152,6 @@ const (
 	actRestart
 	actStart
 	actStop
-	actBackup
 	actDeploy
 	actDelete
 	actBack
@@ -166,6 +166,25 @@ func confirmDelete(name string) (bool, error) {
 	return selected == 1, err
 }
 
+// loadStream lê o stream da instância e converte os eventos em linhas de tela.
+// Se a API limitar as requisições (HTTP 429), espera um pouco e tenta de novo.
+func loadStream(c *api.Client, id string) ([]string, error) {
+	var events []string
+	var err error
+	for attempt := 0; attempt < 2; attempt++ {
+		events = events[:0]
+		err = c.StreamLogs(id, false, func(l string) { events = append(events, l) })
+		if err == nil || !strings.Contains(err.Error(), "HTTP_429") {
+			break
+		}
+		time.Sleep(4 * time.Second)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return buildStreamRows(events), nil
+}
+
 func appActions(c *api.Client, app map[string]any) error {
 	id := appValue(app, "id")
 	name := appValue(app, "name", "appName")
@@ -175,7 +194,6 @@ func appActions(c *api.Client, app map[string]any) error {
 		{Title: "[🔄] Reiniciar", Tone: menu.ToneWarn},
 		{Title: "[⚡] Iniciar", Tone: menu.ToneGood},
 		{Title: "[🛑] Parar", Tone: menu.ToneBad},
-		{Title: "[💾] Criar backup", Tone: menu.ToneInfo},
 		{Title: "[🚀] Fazer deploy", Tone: menu.ToneGood},
 		{Title: "[❌] Excluir", Tone: menu.ToneBad},
 		{Title: "[🔙] Voltar", Tone: menu.ToneMuted},
@@ -185,46 +203,26 @@ func appActions(c *api.Client, app map[string]any) error {
 		if e != nil || selected < 0 || selected == actBack {
 			return e
 		}
+		output.Clear()
 		switch selected {
 		case actDetails:
 			printAppDetails(app)
 		case actLogs:
-			spin := output.StartSpinner("Carregando")
-			var rows []string
-			onlyMetrics := true
-			e = c.StreamLogs(id, false, func(l string) {
-				row, metric := streamRow(l)
-				if row == "" {
-					return
-				}
-				if !metric {
-					onlyMetrics = false
-				}
-				rows = append(rows, row)
-			})
+			spin := output.StartSpinner("Carregando logs e métricas")
+			rows, err := loadStream(c, id)
 			spin.Stop()
-			if e == nil {
-				title := "LOGS • " + name
-				if onlyMetrics {
-					title = "MÉTRICAS • " + name
-					rows = append([]string{output.Colorize("gray", "A API enviou apenas métricas desta aplicação (sem linhas de log de texto).")}, rows...)
-				}
-				if len(rows) == 0 {
-					rows = []string{"Nenhum log recente."}
-				}
-				if e = menu.Viewer(title, rows); e != nil {
+			if err == nil {
+				if e = menu.Viewer("LOGS • "+name, rows); e != nil {
 					return e
 				}
+				output.Clear()
 				continue
 			}
+			e = err
 		case actRestart, actStart, actStop:
 			verbs := map[int][2]string{actRestart: {"RESTART", "Reiniciado"}, actStart: {"START", "Iniciado"}, actStop: {"STOP", "Parado"}}
 			if _, e = c.AppAction(id, verbs[selected][0]); e == nil {
 				output.Success(verbs[selected][1] + ": " + name)
-			}
-		case actBackup:
-			if _, e = c.Snapshot(id, "backup-"+time.Now().Format("20060102-150405")); e == nil {
-				output.Success("Backup criado: " + name)
 			}
 		case actDeploy:
 			if _, e = c.Deploy(id); e == nil {
@@ -236,6 +234,7 @@ func appActions(c *api.Client, app map[string]any) error {
 				return err
 			}
 			if !confirmed {
+				output.Clear()
 				continue
 			}
 			if _, e = c.Remove(id); e == nil {
@@ -252,6 +251,7 @@ func appActions(c *api.Client, app map[string]any) error {
 		if e = menu.Button("Voltar"); e != nil {
 			return e
 		}
+		output.Clear()
 	}
 }
 
@@ -388,7 +388,7 @@ func linkCmd() *cobra.Command {
 	}}
 }
 func backupCmd() *cobra.Command {
-	return &cobra.Command{Use: "backup [app]", Short: "Cria um snapshot", Args: cobra.MaximumNArgs(1), RunE: func(_ *cobra.Command, args []string) error {
+	return &cobra.Command{Use: "backup [app]", Short: "Cria um snapshot", Hidden: true, Args: cobra.MaximumNArgs(1), RunE: func(_ *cobra.Command, args []string) error {
 		c, e := client()
 		if e != nil {
 			return e

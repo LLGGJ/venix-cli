@@ -5,6 +5,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 const (
@@ -195,4 +197,16 @@ func Colorize(color, text string) string {
 		return text
 	}
 	return paint(code, text)
+}
+
+// Clear limpa a tela (sem apagar o histórico de rolagem) quando a saída é um
+// terminal interativo. VENIX_NO_CLEAR=1 desativa.
+func Clear() {
+	if os.Getenv("VENIX_NO_CLEAR") != "" || os.Getenv("TERM") == "dumb" || os.Getenv("CI") != "" {
+		return
+	}
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		return
+	}
+	fmt.Fprint(os.Stdout, "\033[H\033[2J")
 }

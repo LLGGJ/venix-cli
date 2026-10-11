@@ -35,6 +35,9 @@ func reportError(err error, args []string) {
 		output.Error("Sua sessão expirou ou foi recusada.")
 		output.Info("Primeiro use o comando: venix login")
 		output.Info("Depois use o comando novamente: " + retry)
+	case strings.Contains(err.Error(), "HTTP_429"):
+		output.Error("A VenixCloud limitou as requisições (muitas em pouco tempo).")
+		output.Info("Aguarde alguns segundos e use o comando novamente: " + retry)
 	case strings.Contains(err.Error(), "ROUTE_NOT_FOUND"):
 		output.Error("Esta função ainda não está disponível na API da VenixCloud.")
 		output.Muted(err.Error())

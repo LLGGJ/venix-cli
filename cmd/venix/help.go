@@ -91,3 +91,16 @@ func openToolsPage() {
 		output.Muted("Não consegui abrir o navegador: " + detail)
 	}
 }
+
+// clearForCommand limpa a tela antes dos comandos interativos (e do help).
+func clearForCommand(cmd *cobra.Command) {
+	switch cmd.Name() {
+	case "venix", "help", "login", "apps", "doctor", "whoami":
+	default:
+		return
+	}
+	if flag := cmd.Flags().Lookup("json"); flag != nil && flag.Changed {
+		return
+	}
+	output.Clear()
+}

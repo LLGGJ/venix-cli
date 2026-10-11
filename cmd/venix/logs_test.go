@@ -81,3 +81,35 @@ func TestReportErrorRouteNotFound(t *testing.T) {
 		t.Fatal("o código ROUTE_NOT_FOUND precisa estar na mensagem")
 	}
 }
+
+func TestBuildStreamRowsSections(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	rows := buildStreamRows([]string{`"RUNNING"`, sampleMetrics, "2026-10-10 11:00:00 INFO servidor iniciado"})
+	text := strings.Join(rows, "\n")
+	for _, want := range []string{"RESUMO DA APLICAÇÃO", "Memória", "116 de 1024 MB (11%)", "Rede", "LOGS", "servidor iniciado"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("faltou %q em:\n%s", want, text)
+		}
+	}
+	only := strings.Join(buildStreamRows([]string{sampleMetrics}), "\n")
+	if !strings.Contains(only, "apenas métricas") || strings.Contains(only, "LOGS") {
+		t.Fatalf("sem logs de texto deveria avisar que são só métricas:\n%s", only)
+	}
+	if rows := buildStreamRows(nil); len(rows) != 1 || rows[0] != "Nenhum log recente." {
+		t.Fatalf("sem eventos: %v", rows)
+	}
+}
+
+func TestMemoryLimitAndMergeNeverOverwrite(t *testing.T) {
+	if got := memoryLimit(map[string]any{"memory": "82.82GB"}); got != "-" {
+		t.Fatalf("texto com unidade não é limite em MB: %q", got)
+	}
+	app := map[string]any{"id": "a1", "max_ram": float64(300), "memory": "300"}
+	mergeStatus([]map[string]any{app}, map[string]any{"apps": []any{map[string]any{"id": "a1", "memory": "82.82GB", "ram": "82.82GB", "status": "online"}}})
+	if got := memoryLimit(app); got != "300" {
+		t.Fatalf("o merge não pode sobrescrever o limite de memória: %q", got)
+	}
+	if statusRaw(app) != "online" {
+		t.Fatalf("status deveria ser mesclado: %v", app)
+	}
+}

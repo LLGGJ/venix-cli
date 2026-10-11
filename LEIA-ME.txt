@@ -1,4 +1,4 @@
-VENIX CLI v1.0.25  (nota de entrega: NÃO precisa ir para o repositório, pode apagar depois de ler)
+VENIX CLI v1.0.26  (nota de entrega: NÃO precisa ir para o repositório, pode apagar depois de ler)
 
 COMO APLICAR
 1. Extraia este ZIP por cima da pasta do repositório venix-cli, mantendo as pastas.
@@ -7,17 +7,16 @@ COMO APLICAR
      npm-package/bin/venix-native*
      *.tgz
 3. Rode: make fmt && go vet ./... && go test ./...
-4. git add -A && git commit  e depois: git tag v1.0.25 && git push origin v1.0.25
+4. git add -A && git commit  e depois: git tag v1.0.26 && git push origin v1.0.26
 
-O QUE MUDOU NESTA VERSÃO (corrige o go vet: import "output" sem uso em cmd/venix/main.go, que travava o Release da 1.0.24)
-- Criar backup: a rota /v1/snapshots NÃO existe na API da VenixCloud. A CLI agora testa as rotas
-  prováveis (/apps/{id}/snapshots, /snapshot, /backups, /backup...) e usa a primeira que a API
-  reconhece. Se nenhuma existir, mostra "Esta função ainda não está disponível na API".
-  (arquivo: internal/api/client.go)
-- Removida a ação "Visualizar pela web" do menu do app (cmd/venix/commands.go).
-  "Detalhes" continua mostrando o endereço, quando a API informar.
-- Mensagens de erro da API agora trazem o código (ex.: ROUTE_NOT_FOUND).
-  (internal/api/client.go, cmd/venix/errors.go)
+O QUE MUDOU NESTA VERSÃO
+- Instaladores (install.sh, install.ps1, npm): mensagem "<emoji> <sistema> detectado" em formato de cartão.
+- Backup: removido do menu do app e escondido do help (a API ainda não tem a rota).
+- Ver logs: cada pedido à API é mais leve (cache de métricas, intervalo de 10s, pausa em HTTP 429);
+  logs e métricas organizados em seções (RESUMO, LOGS, AMOSTRAS) na tela de logs.
+- Detalhes: dividido em seções APLICAÇÃO / ENDEREÇO / RECURSOS; corrige "82.82GB MB" na memória.
+- Limpa a tela automaticamente nos comandos interativos (VENIX_NO_CLEAR=1 desativa).
+- HTTP 429 agora mostra mensagem amigável.
 
 ARQUIVOS REMOVIDOS EM VERSÕES ANTERIORES (git rm, se ainda existirem):
   GITHUB-AUTOMATICO.md  venix.ignore  .env.example  internal/commands/README.md

@@ -25,6 +25,7 @@ func main() {
 	args := launcherArgs(os.Args, exe)
 	root.SetArgs(args)
 	root.SetHelpFunc(colorHelp)
+	root.PersistentPreRun = func(cmd *cobra.Command, _ []string) { clearForCommand(cmd) }
 	if err := root.Execute(); err != nil {
 		reportError(err, args)
 		os.Exit(1)

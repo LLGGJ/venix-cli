@@ -5,23 +5,41 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/LLGGJ/venix-cli/internal/api"
 	"github.com/LLGGJ/venix-cli/internal/menu"
 )
 
-// appsFeed carrega as aplicações (e, se a API oferecer, o status detalhado)
-// para o menu ao vivo do `venix apps`.
+// appsFeed carrega as aplicações (status, CPU e memória) para o menu ao vivo do
+// `venix apps`, com cuidado para não estourar o limite de requisições da API.
 type appsFeed struct {
-	client   *api.Client
-	mu       sync.Mutex
-	apps     map[string]map[string]any
-	statusOK bool
+	client       *api.Client
+	mu           sync.Mutex
+	apps         map[string]map[string]any
+	statusOK     bool
+	metrics      map[string]map[string]any
+	metricsAt    time.Time
+	backoffUntil time.Time
 }
 
-func (f *appsFeed) load() ([]menu.Item, error) {
+var (
+	cpuKeys         = []string{"cpu", "cpu_usage", "cpuUsage", "cpu_percent"}
+	memoryUsageKeys = []string{"memory_usage", "ram_usage", "memory_used", "ram_used", "memoryUsage"}
+)
+
+// load devolve a lista atual. Sem force, durante uma pausa por limite de
+// requisições (HTTP 429) não chama a API e devolve nil.
+func (f *appsFeed) load(force bool) ([]menu.Item, error) {
+	f.mu.Lock()
+	waiting := time.Now().Before(f.backoffUntil)
+	f.mu.Unlock()
+	if waiting && !force {
+		return nil, nil
+	}
 	me, err := f.client.GetMe()
 	if err != nil {
+		f.noteRateLimit(err)
 		return nil, err
 	}
 	apps := applications(me)
@@ -39,36 +57,75 @@ func (f *appsFeed) load() ([]menu.Item, error) {
 	return items, nil
 }
 
+func (f *appsFeed) noteRateLimit(err error) {
+	if err != nil && strings.Contains(err.Error(), "HTTP_429") {
+		f.mu.Lock()
+		f.backoffUntil = time.Now().Add(30 * time.Second)
+		f.mu.Unlock()
+	}
+}
+
 // enrich completa as aplicações com status (endpoint de status) e com CPU,
-// memória e status em tempo real lidos do stream de cada instância.
+// memória e status lidos do stream de cada instância. As métricas são
+// atualizadas no máximo a cada 20 segundos para poupar a API.
 func (f *appsFeed) enrich(apps []map[string]any) {
 	f.mu.Lock()
 	tryStatus := f.statusOK
+	stale := time.Since(f.metricsAt) > 20*time.Second
 	f.mu.Unlock()
 	if tryStatus {
 		if status, err := f.client.AppsStatus(); err == nil {
 			mergeStatus(apps, status)
+		} else if strings.Contains(err.Error(), "HTTP_429") {
+			f.noteRateLimit(err)
 		} else {
 			f.mu.Lock()
 			f.statusOK = false
 			f.mu.Unlock()
 		}
 	}
+	if stale {
+		fresh := f.fetchMetrics(apps)
+		f.mu.Lock()
+		f.metrics = fresh
+		f.metricsAt = time.Now()
+		f.mu.Unlock()
+	}
+	f.mu.Lock()
+	cached := f.metrics
+	f.mu.Unlock()
+	for _, app := range apps {
+		if m := cached[fmt.Sprint(app["id"])]; m != nil {
+			mergeMetrics(app, m)
+		}
+	}
+}
 
+func (f *appsFeed) fetchMetrics(apps []map[string]any) map[string]map[string]any {
+	fresh := map[string]map[string]any{}
+	var mu sync.Mutex
 	var wg sync.WaitGroup
-	slots := make(chan struct{}, 6)
+	slots := make(chan struct{}, 3)
 	for _, app := range apps {
 		wg.Add(1)
-		go func(app map[string]any) {
+		go func(id string) {
 			defer wg.Done()
 			slots <- struct{}{}
 			defer func() { <-slots }()
-			if m, err := f.client.Metrics(fmt.Sprint(app["id"])); err == nil && m != nil {
-				mergeMetrics(app, m)
+			m, err := f.client.Metrics(id)
+			if err != nil {
+				f.noteRateLimit(err)
+				return
 			}
-		}(app)
+			if m != nil {
+				mu.Lock()
+				fresh[id] = m
+				mu.Unlock()
+			}
+		}(fmt.Sprint(app["id"]))
 	}
 	wg.Wait()
+	return fresh
 }
 
 func (f *appsFeed) app(id string) map[string]any {
@@ -88,6 +145,18 @@ func idOf(m map[string]any) string {
 
 var statusKeys = []string{"status", "state", "app_status", "appStatus", "container_status", "instance_status", "instanceStatus"}
 var boolStatusKeys = []string{"running", "is_running", "isRunning", "online", "is_online", "isOnline", "active"}
+
+// mergeKeys são os únicos campos que o endpoint de status pode copiar para o app
+// (assim ele nunca sobrescreve nome, id ou limites de memória).
+var mergeKeys = func() map[string]bool {
+	keys := map[string]bool{}
+	for _, list := range [][]string{statusKeys, boolStatusKeys, cpuKeys, memoryUsageKeys, {"uptime", "uptime_seconds"}} {
+		for _, key := range list {
+			keys[key] = true
+		}
+	}
+	return keys
+}()
 
 func hasStatus(m map[string]any) bool {
 	for _, key := range append(append([]string{}, statusKeys...), boolStatusKeys...) {
@@ -166,7 +235,7 @@ func collectStatus(value any, byKey map[string]map[string]any, depth int) {
 	}
 }
 
-// mergeStatus copia para cada app os campos do endpoint de status (mesmo id ou nome).
+// mergeStatus copia para cada app apenas os campos de status/uso do endpoint de status.
 func mergeStatus(apps []map[string]any, status map[string]any) {
 	byKey := map[string]map[string]any{}
 	collectStatus(status, byKey, 0)
@@ -177,7 +246,7 @@ func mergeStatus(apps []map[string]any, status map[string]any) {
 		}
 		if ok {
 			for k, v := range extra {
-				if v != nil {
+				if v != nil && mergeKeys[k] {
 					app[k] = v
 				}
 			}
@@ -206,12 +275,30 @@ func formatMB(v float64) string {
 	return strconv.FormatFloat(v, 'f', 0, 64)
 }
 
+// memoryLimit devolve o limite de memória em MB ("-" se desconhecido).
+func memoryLimit(app map[string]any) string {
+	if v := numberValue(app, "max_ram", "maxRam", "ram_limit", "memory_limit"); v >= 0 {
+		return formatMB(v)
+	}
+	for _, key := range []string{"ram", "memory"} {
+		switch v := app[key].(type) {
+		case float64:
+			return formatMB(v)
+		case string:
+			if f, err := strconv.ParseFloat(strings.TrimSpace(v), 64); err == nil {
+				return formatMB(f)
+			}
+		}
+	}
+	return "-"
+}
+
 // appUsage monta "CPU 12% • 256/1024 MB" com o que a API informar; sem
 // métricas de uso mostra só o limite de memória.
 func appUsage(app map[string]any) string {
-	limit := appValue(app, "max_ram", "ram", "memory")
-	cpu := numberValue(app, "cpu", "cpu_usage", "cpuUsage", "cpu_percent")
-	used := numberValue(app, "memory_usage", "ram_usage", "memory_used", "ram_used", "memoryUsage")
+	limit := memoryLimit(app)
+	cpu := numberValue(app, cpuKeys...)
+	used := numberValue(app, memoryUsageKeys...)
 	var parts []string
 	if cpu >= 0 {
 		if cpu < 10 {

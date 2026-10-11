@@ -153,7 +153,10 @@ function announce(message) {
 
 function announceSystem() {
   const [emoji, label] = SYSTEMS[osName];
-  announce(`${emoji} ${label} detectado (${archName})`);
+  const color = !process.env.NO_COLOR;
+  const cyan = text => (color ? `\x1b[36m${text}\x1b[0m` : text);
+  const bold = text => (color ? `\x1b[1m${text}\x1b[0m` : text);
+  announce(`\n  ${cyan('╭─')} ${emoji} ${bold(`${label} detectado`)}\n  ${cyan('╰─')} ${archName} · versão ${version}\n`);
 }
 
 async function main() {
